@@ -1,0 +1,33 @@
+.material-symbols-rounded {
+    font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 24
+}
+
+body {
+    font-family: 'JetBrains Mono', monospace;
+    color: hsl(223, 70%, 4%);
+    background-color: hsl(0, 0%, 100%)
+}
+
+.border-border {
+    border-color: hsl(0, 0%, 89.8%);
+}
+.bg-background {
+    background-color: hsl(0, 0%, 100%);
+}
+.bg-secondary {
+    background-color: hsl(210, 20%, 98%);
+}
+.text-foreground {
+    color: hsl(223, 70%, 4%);
+}
+.text-muted-foreground {
+    color: hsl(211, 11%, 45%);
+}
+
+.bg-gray {
+    background-color: hsl(0, 0%, 99%);
+}

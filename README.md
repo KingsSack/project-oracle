@@ -1,38 +1,19 @@
-# sv
+# Project Oracle
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+> ⚠️ **Alpha Software Warning**: This project is currently in alpha state. Features may be incomplete, unstable, or subject to breaking changes. Use at your own risk.
 
-## Creating a project
+Project Oracle is a self-hosted search application designed to help you find information across various sources including the web and your personal data.
 
-If you're seeing this, you've probably already done this step. Congrats!
+## Overview
 
-```bash
-# create a new project in the current directory
-npx sv create
+At its core, Project Oracle provides a unified search interface that can index and query multiple data sources, giving you comprehensive search capabilities while keeping your data under your control.
 
-# create a new project in my-app
-npx sv create my-app
-```
+## Key Features
 
-## Developing
+- **Self-hosted**: Deploy on your own infrastructure
+- **Multi-source search**: Search across web content and personal data
+- **Extensible**: Designed to support various data sources and search backends
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+## Status
 
-```bash
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
-
-## Building
-
-To create a production version of your app:
-
-```bash
-npm run build
-```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+This project is currently in **alpha development**. Expect frequent changes, potential bugs, and incomplete documentation as we work toward a stable release.

@@ -38,10 +38,10 @@
                 <Selector current = "All" />
                 <button
                     type="submit"
-                    class="rounded-md inline-flex items-center justify-center cursor-pointer gap-x-2 text-foreground hover:opacity-70 transition-opacity"
+                    class="rounded-md inline-flex items-center justify-center cursor-pointer gap-x-2 text-muted-foreground hover:text-foreground transition-colors"
                     aria-label="Submit"
                 >
-                    <span class="material-symbols-rounded">search</span>
+                    <span class="material-symbols-rounded">send</span>
                 </button>
             </div>
         </div>

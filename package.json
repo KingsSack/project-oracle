@@ -6,6 +6,7 @@
 		"@sveltejs/kit": "^2.16.0",
 		"@sveltejs/vite-plugin-svelte": "^5.0.0",
 		"@tailwindcss/vite": "^4.0.0",
+		"@types/katex": "^0.16.7",
 		"drizzle-kit": "^0.31.1",
 		"prettier": "^3.4.2",
 		"prettier-plugin-svelte": "^3.3.3",
@@ -34,6 +35,10 @@
 		"@libsql/client": "^0.15.7",
 		"dotenv": "^16.5.0",
 		"drizzle-orm": "^0.43.1",
-		"genkit": "^1.10.0"
+		"genkit": "^1.10.0",
+		"katex": "^0.16.22",
+		"marked": "^15.0.12",
+		"mdsvex": "^0.12.6",
+		"shiki": "^3.4.2"
 	}
 }

@@ -7,19 +7,23 @@
 	import Tag from '$lib/components/tag.svelte';
 	import { onMount } from 'svelte';
 
-	let { data, form } = $props();
-	let response = $state(data.result);
+	let { data, form }: { data: any; form: any } = $props();
+	let response = $state(data.result || '');
 	let tags = $state(data.tags);
 
 	onMount(() => {
+		const cleanupFunctions: (() => void)[] = [];
+
 		if (data.result === null) {
 			const eventSource = new EventSource(`/api/response/${page.params.id}`);
 
 			eventSource.onmessage = (event) => {
 				const data = JSON.parse(event.data);
 
-				if (data.type === 'chunk') {
-					response += data.content;
+				if (data.type === 'tool_request') {
+					console.log('Tool request received:', data.content);
+				} else if (data.type === 'chunk') {
+					response = (response || '') + data.content;
 				} else if (data.type === 'complete') {
 					response = data.content;
 					eventSource.close();
@@ -33,11 +37,10 @@
 				eventSource.close();
 			};
 
-			return () => eventSource.close();
+			cleanupFunctions.push(() => eventSource.close());
 		}
 
 		if (data.tags.length === 0) {
-			console.log('Streaming tags...');
 			const eventSource = new EventSource(`/api/tags/${page.params.id}`);
 
 			eventSource.onmessage = (event) => {
@@ -58,13 +61,17 @@
 				}
 			};
 
-			eventSource.onerror = (error) => {
-				console.error('EventSource error:', error);
+			eventSource.onerror = () => {
 				eventSource.close();
 			};
 
-			return () => eventSource.close();
+			cleanupFunctions.push(() => eventSource.close());
 		}
+
+		// Return cleanup function that closes all EventSources
+		return () => {
+			cleanupFunctions.forEach(cleanup => cleanup());
+		};
 	});
 </script>
 

@@ -41,7 +41,10 @@
     });
 
     function renderContent() {
-        if (!content) return;
+        if (!content) {
+            renderedHtml = '';
+            return;
+        }
         
         try {
             // Process LaTeX math expressions
@@ -71,6 +74,12 @@
     }
 
     $effect(() => {
+        // Re-render content whenever it changes, even if highlighter isn't ready yet
+        renderContent();
+    });
+
+    $effect(() => {
+        // Re-render when highlighter becomes available to apply syntax highlighting
         if (highlighter && content) {
             renderContent();
         }

@@ -5,11 +5,22 @@
 	import TabGroup from '$lib/components/tab-group.svelte';
 	import Tab from '$lib/components/tab.svelte';
 	import Tag from '$lib/components/tag.svelte';
+	import ToolCall from '$lib/components/tool-call.svelte';
 	import { onMount } from 'svelte';
+
+	interface ToolCallData {
+		id: string;
+		name: string;
+		input: any;
+		output?: any;
+		status: 'pending' | 'complete' | 'error';
+	}
 
 	let { data, form }: { data: any; form: any } = $props();
 	let response = $state(data.result || '');
 	let tags = $state(data.tags);
+	let toolCalls = $state<ToolCallData[]>([]);
+	let activeTab = $state('response');
 
 	onMount(() => {
 		const cleanupFunctions: (() => void)[] = [];
@@ -18,18 +29,48 @@
 			const eventSource = new EventSource(`/api/response/${page.params.id}`);
 
 			eventSource.onmessage = (event) => {
-				const data = JSON.parse(event.data);
+				try {
+					const data = JSON.parse(event.data);
 
-				if (data.type === 'tool_request') {
-					console.log('Tool request received:', data.content);
-				} else if (data.type === 'chunk') {
-					response = (response || '') + data.content;
-				} else if (data.type === 'complete') {
-					response = data.content;
-					eventSource.close();
-				} else if (data.type === 'error') {
-					console.error('Streaming error:', data.content);
-					eventSource.close();
+					if (data.type === 'tool_request') {
+						// Add or update tool call
+						const toolCall: ToolCallData = {
+							id: `${data.content.name}-${Date.now()}`,
+							name: data.content.name,
+							input: data.content.input,
+							status: 'pending'
+						};
+						toolCalls = [...toolCalls, toolCall];
+					} else if (data.type === 'tool_response') {
+						// Update the corresponding tool call with the output
+						const toolResponse = data.content;
+						toolCalls = toolCalls.map(tc => {
+							if (tc.name === toolResponse.name && tc.status === 'pending') {
+								return { ...tc, output: toolResponse.output, status: 'complete' as const };
+							}
+							return tc;
+						});
+					} else if (data.type === 'chunk') {
+						response = (response || '') + data.content;
+					} else if (data.type === 'complete') {
+						response = data.content;
+						// Mark any pending tool calls as complete
+						toolCalls = toolCalls.map(tc => ({ ...tc, status: 'complete' as const }));
+						eventSource.close();
+					} else if (data.type === 'error') {
+						console.error('Streaming error:', data.content);
+						// Mark any pending tool calls as error
+						toolCalls = toolCalls.map(tc => ({ ...tc, status: 'error' as const }));
+						eventSource.close();
+					}
+				} catch (parseError) {
+					console.error('Failed to parse JSON from event:', event.data, parseError);
+					// Try to extract any readable error message
+					if (event.data.includes('error')) {
+						console.error('Streaming error: Failed to parse JSON');
+						toolCalls = toolCalls.map(tc => ({ ...tc, status: 'error' as const }));
+						eventSource.close();
+					}
 				}
 			};
 
@@ -88,13 +129,51 @@
 		{/each}
 	</div>
 
-	<TabGroup>
-		<Tab active={true}>Response</Tab>
-		<!-- <Tab>Sites</Tab> -->
-		<!-- <Tab>Images</Tab> -->
-	</TabGroup>
+	<div>		
+		<TabGroup>
+			<Tab active={activeTab === 'response'} onclick={() => activeTab = 'response'}>Response</Tab>
+			<Tab active={activeTab === 'tools'} onclick={() => activeTab = 'tools'}>
+				Tools {toolCalls.length > 0 ? `(${toolCalls.length})` : ''}
+			</Tab>
+		</TabGroup>
+	</div>
 
-	<Markdown content={response?.toString()} />
+	{#if activeTab === 'response'}
+		{#each toolCalls as toolCall}
+			<div class="flex gap-2">
+				<div class="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center">
+					<span class="material-symbols-rounded text-xs">
+						{#if toolCall.status === 'pending'}
+							autorenew
+						{:else if toolCall.status === 'complete'}
+							check_circle
+						{:else if toolCall.status === 'error'}
+							error
+						{/if}
+					</span>
+				</div>
+				<ToolCall {toolCall} />
+			</div>
+		{/each}
+		<div class="flex gap-2">
+			<div class="w-6 h-6 bg-gray-200 flex items-center justify-center text-xs aspect-square rounded-full">
+				{toolCalls.length + 1}
+			</div>
+			<Markdown content={response?.toString()} />
+		</div>
+	{:else if activeTab === 'tools'}
+		<div class="flex flex-col gap-3">
+			{#if toolCalls.length === 0}
+				<div class="text-muted-foreground text-center py-8">
+					No tool calls yet
+				</div>
+			{:else}
+				{#each toolCalls as toolCall}
+					<ToolCall {toolCall} />
+				{/each}
+			{/if}
+		</div>
+	{/if}
 
 	<div class="flex gap-2">
 		<!-- <button

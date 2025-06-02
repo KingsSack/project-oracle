@@ -10,8 +10,8 @@ export const generateResponseFlow = ai.defineFlow(
 	{
 		name: 'generateResponse',
 		inputSchema: GenerateResponseInputSchema,
-        outputSchema: z.string().describe('The generated response to the user query.'),
-    },
+		outputSchema: z.string().describe('The generated response to the user query.')
+	},
 	async ({ query }, { sendChunk }) => {
 		const { stream, response } = ai.generateStream({
 			prompt: `Generate a quick response to the following query.
@@ -19,16 +19,16 @@ export const generateResponseFlow = ai.defineFlow(
 
 			Query: ${query}
 
-            Highlight the key points and let the user decide whether they would like to see more details.`,
-            tools: [search]
+            Keep the response concise and let the user decide whether they would like to see more details.`,
+			tools: [search]
 		});
 
 		for await (const chunk of stream) {
-            sendChunk(chunk);
+			sendChunk(chunk);
 		}
 
 		const { text } = await response;
-		
-        return text;
+
+		return text;
 	}
 );

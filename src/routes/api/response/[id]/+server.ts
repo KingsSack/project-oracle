@@ -29,24 +29,73 @@ export async function GET({ params: { id } }) {
 				}
 
 				try {
-					const response = generateResponseFlow.stream({ query: query.query.toString() });
+					const queryString = query.query.toString();
+					console.log('Processing query:', queryString);
+					
+					const response = generateResponseFlow.stream({ query: queryString });
 
 					for await (const chunk of response.stream) {
 						if (chunk.toolRequests && chunk.toolRequests.length > 0) {
 							for (const toolRequest of chunk.toolRequests) {
+								try {
+									controller.enqueue(
+										`data: ${JSON.stringify({ type: 'tool_request', content: toolRequest })}\n\n`
+									);
+								} catch (jsonError) {
+									console.error('Failed to serialize tool request:', jsonError);
+									controller.enqueue(
+										`data: ${JSON.stringify({ type: 'tool_request', content: { name: toolRequest.name || 'unknown', error: 'Failed to serialize request' } })}\n\n`
+									);
+								}
+							}
+						}
+						if (chunk.toolResponses && chunk.toolResponses.length > 0) {
+							for (const toolResponse of chunk.toolResponses) {
+								try {
+									console.log('Processing tool response:', toolResponse.name, 'with output type:', typeof toolResponse.output);
+									
+									// Safely serialize the tool response, handling potential circular references or non-serializable data
+									const safeToolResponse = {
+										name: toolResponse.name,
+										output: typeof toolResponse.output === 'object' && toolResponse.output !== null 
+											? JSON.parse(JSON.stringify(toolResponse.output)) // Deep clone to avoid circular refs
+											: toolResponse.output
+									};
+									
+									const serializedData = JSON.stringify({ type: 'tool_response', content: safeToolResponse });
+									console.log('Serialized tool response length:', serializedData.length);
+									
+									controller.enqueue(`data: ${serializedData}\n\n`);
+								} catch (jsonError) {
+									console.error('Failed to serialize tool response:', jsonError, 'Tool:', toolResponse.name, 'Output:', toolResponse.output);
+									controller.enqueue(
+										`data: ${JSON.stringify({ type: 'tool_response', content: { name: toolResponse.name || 'unknown', output: 'Failed to serialize response', error: true } })}\n\n`
+									);
+								}
+							}
+						}
+						if (chunk.text) {
+							try {
 								controller.enqueue(
-									`data: ${JSON.stringify({ type: 'tool_request', content: toolRequest })}\n\n`
+									`data: ${JSON.stringify({ type: 'chunk', content: chunk.text })}\n\n`
+								);
+							} catch (jsonError) {
+								console.error('Failed to serialize chunk text:', jsonError);
+								controller.enqueue(
+									`data: ${JSON.stringify({ type: 'error', content: 'Failed to serialize response chunk' })}\n\n`
 								);
 							}
 						}
-						controller.enqueue(
-							`data: ${JSON.stringify({ type: 'chunk', content: chunk.text })}\n\n`
-						);
 					}
 
 					const output = await response.output;
 
-					controller.enqueue(`data: ${JSON.stringify({ type: 'complete', content: output })}\n\n`);
+					try {
+						controller.enqueue(`data: ${JSON.stringify({ type: 'complete', content: output })}\n\n`);
+					} catch (jsonError) {
+						console.error('Failed to serialize final output:', jsonError);
+						controller.enqueue(`data: ${JSON.stringify({ type: 'error', content: 'Failed to serialize final response' })}\n\n`);
+					}
 
 					await db.update(queries).set({ result: output }).where(eq(queries.id, query.id));
 				} catch (error) {

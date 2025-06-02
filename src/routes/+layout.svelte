@@ -41,6 +41,9 @@
 	:global(.bg-secondary) {
 		background-color: hsl(210, 20%, 98%);
 	}
+	:global(.bg-muted) {
+		background-color: hsl(210, 20%, 96%);
+	}
 	:global(.text-foreground) {
 		color: hsl(223, 70%, 4%);
 	}

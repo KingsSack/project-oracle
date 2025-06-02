@@ -24,4 +24,7 @@ vite.config.ts.timestamp-*
 
 # Drizzle
 .drizzle
-local.db
+*.sql
+*.db
+**/migrations/
+**/meta/

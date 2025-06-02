@@ -5,7 +5,7 @@
 	let { children } = $props();
 </script>
 
-<div>
+<div class="text-foreground">
 	<div class="flex flex-col items-center justify-center min-h-svh w-full max-w-xl mx-auto gap-4">
 		{@render children()}
 	</div>

@@ -31,7 +31,24 @@ export const queryRelations = relations(queries, ({ one, many }) => ({
 		fields: [queries.threadId],
 		references: [threads.id]
 	}),
-	tagsToQueries: many(tagsToQueries)
+	tagsToQueries: many(tagsToQueries),
+	toolCalls: many(toolCalls)
+}));
+
+export const toolCalls = sqliteTable('tool_calls_table', {
+	id: int().primaryKey({ autoIncrement: true }),
+	name: text().notNull(),
+	input: text().notNull(), // JSON string
+	output: text(), // JSON string, nullable since it might not be available immediately
+	timestamp: text().notNull(),
+	queryId: int().references(() => queries.id, { onDelete: 'cascade' }).notNull()
+});
+
+export const toolCallRelations = relations(toolCalls, ({ one }) => ({
+	query: one(queries, {
+		fields: [toolCalls.queryId],
+		references: [queries.id]
+	})
 }));
 
 export const tags = sqliteTable('tags_table', {

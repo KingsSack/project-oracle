@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { db } from '../../../../db/db.server';
-import { queries, threads } from '../../../../db/schema';
+import { queries, threads, toolCalls } from '../../../../db/schema';
 import { generateResponseFlow } from '$lib/responses';
 
 export async function GET({ params: { id } }) {
@@ -39,37 +39,19 @@ export async function GET({ params: { id } }) {
 							for (const toolRequest of chunk.toolRequests) {
 								try {
 									controller.enqueue(
-										`data: ${JSON.stringify({ type: 'tool_request', content: toolRequest })}\n\n`
+										`data: ${JSON.stringify({ type: 'tool_request', content: toolRequest.toolRequest })}\n\n`
 									);
+
+									await db.insert(toolCalls).values({
+										name: toolRequest.toolRequest.name || 'unknown',
+										input: toolRequest.toolRequest.input.query || '',
+										timestamp: new Date().toISOString(),
+										queryId: query.id
+									});
 								} catch (jsonError) {
 									console.error('Failed to serialize tool request:', jsonError);
 									controller.enqueue(
-										`data: ${JSON.stringify({ type: 'tool_request', content: { name: toolRequest.name || 'unknown', error: 'Failed to serialize request' } })}\n\n`
-									);
-								}
-							}
-						}
-						if (chunk.toolResponses && chunk.toolResponses.length > 0) {
-							for (const toolResponse of chunk.toolResponses) {
-								try {
-									console.log('Processing tool response:', toolResponse.name, 'with output type:', typeof toolResponse.output);
-									
-									// Safely serialize the tool response, handling potential circular references or non-serializable data
-									const safeToolResponse = {
-										name: toolResponse.name,
-										output: typeof toolResponse.output === 'object' && toolResponse.output !== null 
-											? JSON.parse(JSON.stringify(toolResponse.output)) // Deep clone to avoid circular refs
-											: toolResponse.output
-									};
-									
-									const serializedData = JSON.stringify({ type: 'tool_response', content: safeToolResponse });
-									console.log('Serialized tool response length:', serializedData.length);
-									
-									controller.enqueue(`data: ${serializedData}\n\n`);
-								} catch (jsonError) {
-									console.error('Failed to serialize tool response:', jsonError, 'Tool:', toolResponse.name, 'Output:', toolResponse.output);
-									controller.enqueue(
-										`data: ${JSON.stringify({ type: 'tool_response', content: { name: toolResponse.name || 'unknown', output: 'Failed to serialize response', error: true } })}\n\n`
+										`data: ${JSON.stringify({ type: 'tool_request', content: { name: toolRequest.toolRequest.name || 'unknown', error: 'Failed to serialize request' } })}\n\n`
 									);
 								}
 							}

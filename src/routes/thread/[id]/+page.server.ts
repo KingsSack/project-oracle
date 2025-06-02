@@ -10,7 +10,7 @@ export async function load({ params: { id } }) {
 			columns: {
 				id: false,
 				timestamp: false,
-				userId: false	
+				userId: false
 			},
 			with: {
 				queries: {
@@ -31,6 +31,13 @@ export async function load({ params: { id } }) {
 									}
 								}
 							}
+						},
+						toolCalls: {
+							columns: {
+								name: true,
+								input: true,
+								output: true
+							}
 						}
 					}
 				}
@@ -45,11 +52,21 @@ export async function load({ params: { id } }) {
 			error(404, 'No queries found for this thread');
 		}
 
+		console.log(
+			'Tool calls:',
+			thread.queries[0].toolCalls.map((toolCall) => toolCall.name)
+		);
+
 		return {
 			name: thread.queries[0].query,
 			result: thread.queries[0].result,
 			tags: thread.queries[0].tagsToQueries.map((tagToQuery) => ({
 				name: tagToQuery.tag.name
+			})),
+			toolCalls: thread.queries[0].toolCalls.map((toolCall) => ({
+				name: toolCall.name,
+				input: toolCall.input,
+				output: toolCall.output
 			}))
 		};
 	} catch (error) {

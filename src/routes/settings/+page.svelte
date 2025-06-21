@@ -1,8 +1,13 @@
 <script lang="ts">
 	let { data, form }: { data: any, form: any } = $props();
 
-	let models = data.models || [];
-	let modelGroups = data.modelGroups || [];
+	interface ModelData {
+		id: number;
+		model: string;
+	}
+
+	let models: ModelData[] = $state(data.models || []);
+	let modelGroups = $state(data.modelGroups || []);
 
 	let creatingModel = $state(false);
 	let creatingModelGroup = $state(false);
@@ -18,7 +23,13 @@
 	<h2 class="text-sm">Models</h2>
 
 	{#each models as model}
-		<p>{model}</p>
+		<form method="POST" action="?/delete-model">
+			<div class="flex items-center justify-between">
+				<input type="hidden" name="id" value={model.id} required />
+				<p>{model.model}</p>
+				<button type="submit" class="btn btn-secondary cursor-pointer text-muted-foreground"><span class="material-symbols-rounded">delete</span></button>
+			</div>
+		</form>
 	{/each}
 
 	{#if models.length === 0}
@@ -47,11 +58,11 @@
 					<option value="cohere">Cohere</option>
 				</select>
 
-				<button type="submit" class="btn btn-primary">Add Model</button>
+				<button type="submit" class="btn btn-primary cursor-pointer">Add Model</button>
 			</div>
 		</form>
 	{:else}
-		<button class="btn btn-secondary" onclick={() => (creatingModel = true)}>Add Model</button>
+		<button class="btn btn-secondary cursor-pointer" onclick={() => (creatingModel = true)}>Add Model</button>
 	{/if}
 
 	<h2 class="text-sm">Model Groups</h2>
@@ -71,41 +82,41 @@
 					class="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-8 w-full rounded-md border px-2 py-1 text-sm leading-5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 					required
 				/>
-                <label class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-sm leading-5" for="responseModel">Response Model</label>
+                <label class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-sm leading-5" for="responseModelId">Response Model</label>
 				<select
-					name="responseModel"
+					name="responseModelId"
 					class="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-8 w-full rounded-md border px-2 py-1 text-sm leading-5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 					required
 				>
 					{#each models as model}
-						<option value={model}>{model}</option>
+						<option value={model.id}>{model.model}</option>
 					{/each}
 				</select>
-                <label class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-sm leading-5" for="tagsModel">Tags Model</label>
+                <label class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-sm leading-5" for="tagsModelId">Tags Model</label>
 				<select
-					name="tagsModel"
+					name="tagsModelId"
 					class="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-8 w-full rounded-md border px-2 py-1 text-sm leading-5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 					required
 				>
 					{#each models as model}
-						<option value={model}>{model}</option>
+						<option value={model.id}>{model.model}</option>
 					{/each}
 				</select>
-                <label class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-sm leading-5" for="followUpModel">Follow Up Model</label>
+                <label class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-sm leading-5" for="followUpModelId">Follow Up Model</label>
 				<select
-					name="followUpModel"
+					name="followUpModelId"
 					class="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-8 w-full rounded-md border px-2 py-1 text-sm leading-5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 					required
 				>
 					{#each models as model}
-						<option value={model}>{model}</option>
+						<option value={model.id}>{model.model}</option>
 					{/each}
 				</select>
 				
-				<button type="submit" class="btn btn-primary">Add Group</button>
+				<button type="submit" class="btn btn-primary cursor-pointer">Add Group</button>
 			</div>
 		</form>
 	{:else}
-		<button class="btn btn-secondary" onclick={() => (creatingModelGroup = true)}>Add Model Group</button>
+		<button class="btn btn-secondary cursor-pointer" onclick={() => (creatingModelGroup = true)}>Add Model Group</button>
 	{/if}
 </div>

@@ -21,8 +21,6 @@ export const actions = {
 				model: model.toString(),
 				provider: provider.toString()
 			});
-
-			console.log(`Model ${model} with provider ${provider} added successfully.`);
 		} catch (error) {
 			return fail(422, {
 				error: error instanceof Error ? error.message : 'Unknown error'
@@ -31,41 +29,45 @@ export const actions = {
 
 		return { success: true };
 	},
+	'delete-model': async ({ request }) => {
+		const data = await request.formData();
+
+		const id = data.get('id');
+
+		if (!id) {
+			return fail(400, {
+				error: 'id is required'
+			});
+		}
+
+		try {
+			await db.delete(models).where(eq(models.id, Number(id)));
+		} catch (error) {
+			return fail(422, {
+				error: error instanceof Error ? error.message : 'Unknown error'
+			});
+		}
+	},
 	'add-group': async ({ request }) => {
 		const data = await request.formData();
 
 		const groupName = data.get('groupName');
-		const tagsModel = data.get('tagsModel');
-		const responseModel = data.get('responseModel');
-		const followUpModel = data.get('followUpModel');
+		const tagsModelId = data.get('tagsModelId');
+		const responseModelId = data.get('responseModelId');
+		const followUpModelId = data.get('followUpModelId');
 
-		if (!groupName || !tagsModel || !responseModel || !followUpModel) {
+		if (!groupName || !tagsModelId || !responseModelId || !followUpModelId) {
 			return fail(400, {
 				error: 'All fields are required'
 			});
 		}
 
 		try {
-			const tagsModelId = await db
-				.select({ id: models.id })
-				.from(models)
-				.where(eq(models.model, tagsModel.toString()));
-
-			const responseModelId = await db
-				.select({ id: models.id })
-				.from(models)
-				.where(eq(models.model, responseModel.toString()));
-
-			const followUpModelId = await db
-				.select({ id: models.id })
-				.from(models)
-				.where(eq(models.model, followUpModel.toString()));
-
 			await db.insert(modelGroups).values({
 				name: groupName.toString(),
-				tagsModelId: tagsModelId[0].id,
-				responseModelId: responseModelId[0].id,
-				followUpModelId: followUpModelId[0].id
+				tagsModelId: Number(tagsModelId),
+				responseModelId: Number(responseModelId),
+				followUpModelId: Number(followUpModelId)
 			});
 		} catch (error) {
 			return fail(422, {
@@ -80,16 +82,13 @@ export const actions = {
 export async function load() {
 	try {
 		const modelsData = await db
-			.select({ model: models.model })
+			.select({ id: models.id, model: models.model })
 			.from(models)
 			.orderBy(models.model);
 		const modelGroupsData = await db.select({ name: modelGroups.name }).from(modelGroups);
 
-		console.log('Models:', modelsData);
-		console.log('Model Groups:', modelGroupsData);
-
 		return {
-			models: modelsData.map((model) => model.model),
+			models: modelsData.map((model) => ({ id: model.id, model: model.model })),
 			modelGroups: modelGroupsData.map((group) => group.name)
 		};
 	} catch (error) {

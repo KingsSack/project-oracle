@@ -8,8 +8,13 @@ export async function GET({ params: { id } }) {
 		where: eq(threads.id, parseInt(id)),
 		with: {
 			modelGroups: {
-				columns: {
-					responseModel: true
+				with: {
+					responseModel: {
+						columns: {
+							model: true,
+							provider: true
+						}
+					}
 				}
 			},
 			queries: true
@@ -21,6 +26,8 @@ export async function GET({ params: { id } }) {
 	}
 
 	const query = thread.queries[0];
+
+	const modelGroup = thread.modelGroups;
 
 	return new Response(
 		new ReadableStream({
@@ -38,7 +45,8 @@ export async function GET({ params: { id } }) {
 					console.log('Processing query:', queryString);
 
 					const response = generateResponseFlow.stream({
-						model: thread.modelGroups.responseModel,
+						model: modelGroup.responseModel.model,
+						provider: modelGroup.responseModel.provider,
 						query: queryString
 					});
 

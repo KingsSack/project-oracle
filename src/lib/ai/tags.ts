@@ -4,6 +4,7 @@ import googleAI from '@genkit-ai/googleai';
 
 const GenerateTagsInputSchema = z.object({
 	model: z.string().default('gemini-2.0-flash-lite').describe('The model to use for generating tags. Defaults to "gemini-2.0-flash-lite".'),
+	provider: z.string().default('googleai').describe('The provider to use for the model. Defaults to "googleai".'),
 	query: z.string().describe('The user query for which to generate tags.')
 });
 
@@ -26,7 +27,7 @@ export const generateTagsFlow = ai.defineFlow(
 		streamSchema: GenerateTagsOutputSchema,
 		outputSchema: GenerateTagsOutputSchema
 	},
-	async ({ model, query }, { sendChunk }) => {
+	async ({ model, provider, query }, { sendChunk }) => {
 		const { stream, response } = ai.generateStream({
 			prompt: `Generate relevant tags for the following query. Return ONLY valid JSON without any markdown formatting, code blocks, or additional text.
 
@@ -41,7 +42,7 @@ export const generateTagsFlow = ai.defineFlow(
 			- No markdown formatting
 			- No code blocks or backticks
 			- Pure JSON only`,
-			model: googleAI.model(model)
+			model: provider + '/' + model
 		});
 
 		let accumulatedText = '';

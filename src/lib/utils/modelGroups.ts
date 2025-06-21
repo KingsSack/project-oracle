@@ -1,4 +1,7 @@
+import googleAI from '@genkit-ai/googleai';
 import { db } from '../../db/db.server';
+import { gpt35Turbo, gpt4, gpt41, gpt41Mini, gpt41Nano, gpt45, gpt4o, gpt4oMini, o1, o3, o3Mini, o4Mini, openAI } from 'genkitx-openai';
+import { cohere, commandA, commandR, commandRPlus } from 'genkitx-cohere';
 
 /**
  * Determines which model group to use when "Auto" is selected.

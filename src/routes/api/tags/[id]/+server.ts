@@ -8,8 +8,13 @@ export async function GET({ params: { id } }) {
 		where: eq(threads.id, parseInt(id)),
 		with: {
 			modelGroups: {
-				columns: {
-					tagsModel: true
+				with: {
+					tagsModel: {
+						columns: {
+							model: true,
+							provider: true
+						}
+					}
 				}
 			},
 			queries: {
@@ -31,6 +36,8 @@ export async function GET({ params: { id } }) {
 	const query = thread.queries[0];
 	const queryTags = thread.queries[0].tagsToQueries;
 
+	const modelGroup = thread.modelGroups;
+
 	return new Response(
 		new ReadableStream({
 			async start(controller) {
@@ -44,7 +51,8 @@ export async function GET({ params: { id } }) {
 
 				try {
 					const response = generateTagsFlow.stream({
-						model: thread.modelGroups.tagsModel,
+						model: modelGroup.tagsModel.model,
+						provider: modelGroup.tagsModel.provider,
 						query: query.query.toString()
 					});
 

@@ -1,5 +1,5 @@
 import { relations, sql } from 'drizzle-orm';
-import { int, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { check, int, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 export const users = sqliteTable('users_table', {
 	id: int().primaryKey({ autoIncrement: true }),
@@ -7,18 +7,52 @@ export const users = sqliteTable('users_table', {
 	email: text().notNull().unique()
 });
 
+export const models = sqliteTable(
+	'models_table',
+	{
+		id: int().primaryKey({ autoIncrement: true }),
+		model: text().notNull(),
+		provider: text().notNull(),
+		userId: int().references(() => users.id, { onDelete: 'cascade' })
+	},
+	(t) => [check('provider_check', sql`(${t.provider} IN ('googleai', 'openai', 'cohere'))`)]
+);
+
 export const modelGroups = sqliteTable('model_groups_table', {
 	id: int().primaryKey({ autoIncrement: true }),
 	name: text().notNull(),
-	tagsModel: text().notNull(),
-	responseModel: text().notNull(),
-	followUpModel: text().notNull(),
+	tagsModelId: int()
+		.notNull()
+		.references(() => models.id, { onDelete: 'cascade' }),
+	responseModelId: int()
+		.notNull()
+		.references(() => models.id, { onDelete: 'cascade' }),
+	followUpModelId: int()
+		.notNull()
+		.references(() => models.id, { onDelete: 'cascade' }),
 	userId: int().references(() => users.id, { onDelete: 'cascade' })
 });
 
+export const modelGroupRelations = relations(modelGroups, ({ one }) => ({
+	tagsModel: one(models, {
+		fields: [modelGroups.tagsModelId],
+		references: [models.id]
+	}),
+	responseModel: one(models, {
+		fields: [modelGroups.responseModelId],
+		references: [models.id]
+	}),
+	followUpModel: one(models, {
+		fields: [modelGroups.followUpModelId],
+		references: [models.id]
+	})
+}));
+
 export const threads = sqliteTable('threads_table', {
 	id: int().primaryKey({ autoIncrement: true }),
-	modelGroupsId: int().notNull().references(() => modelGroups.id, { onDelete: 'cascade' }),
+	modelGroupsId: int()
+		.notNull()
+		.references(() => modelGroups.id, { onDelete: 'cascade' }),
 	timestamp: text().notNull(),
 	userId: int().references(() => users.id, { onDelete: 'cascade' })
 });

@@ -6,6 +6,18 @@
 </script>
 
 <div class="text-foreground">
+	<div class="flex items-center justify-between w-full p-2">
+		<div></div>
+		<div class="flex items-center gap-2">
+			<a href="/settings" class="text-muted-foreground">
+				<span class="material-symbols-rounded">settings</span>
+			</a>
+			<a href="/profile" class="text-muted-foreground">
+				<span class="material-symbols-rounded">person</span>
+			</a>
+		</div>
+	</div>
+
 	<div class="flex flex-col items-center justify-center min-h-svh w-full max-w-xl mx-auto gap-4">
 		{@render children()}
 	</div>
@@ -34,6 +46,9 @@
 
 	:global(.border-border) {
 		border-color: hsl(0, 0%, 89.8%);
+	}
+	:global(.border-input) {
+		border-color: hsl(0, 0%, 84.8%);
 	}
 	:global(.bg-background) {
 		background-color: hsl(0, 0%, 100%);

@@ -1,12 +1,17 @@
 import { eq, and } from 'drizzle-orm';
 import { db } from '../../../../db/db.server';
 import { tags, tagsToQueries, threads } from '../../../../db/schema';
-import { generateTagsFlow } from '$lib/tags';
+import { generateTagsFlow } from '$lib/ai/tags';
 
 export async function GET({ params: { id } }) {
 	const thread = await db.query.threads.findFirst({
 		where: eq(threads.id, parseInt(id)),
 		with: {
+			modelGroups: {
+				columns: {
+					tagsModel: true
+				}
+			},
 			queries: {
 				with: {
 					tagsToQueries: {
@@ -38,10 +43,15 @@ export async function GET({ params: { id } }) {
 				}
 
 				try {
-					const response = generateTagsFlow.stream({ query: query.query.toString() });
+					const response = generateTagsFlow.stream({
+						model: thread.modelGroups.tagsModel,
+						query: query.query.toString()
+					});
 
 					for await (const chunk of response.stream) {
-						controller.enqueue(`data: ${JSON.stringify({ type: 'chunk', content: chunk.tags })}\n\n`);
+						controller.enqueue(
+							`data: ${JSON.stringify({ type: 'chunk', content: chunk.tags })}\n\n`
+						);
 					}
 
 					const output = await response.output;
@@ -62,16 +72,16 @@ export async function GET({ params: { id } }) {
 								tagId = existingTag.id;
 							} else {
 								// Create new tag if it doesn't exist
-								const [newTag] = await db.insert(tags).values({ name: tag.name }).returning({ id: tags.id });
+								const [newTag] = await db
+									.insert(tags)
+									.values({ name: tag.name })
+									.returning({ id: tags.id });
 								tagId = newTag.id;
 							}
 
 							// Check if the tag is already associated with this query
 							const existingAssociation = await db.query.tagsToQueries.findFirst({
-								where: and(
-									eq(tagsToQueries.queryId, query.id),
-									eq(tagsToQueries.tagId, tagId)
-								)
+								where: and(eq(tagsToQueries.queryId, query.id), eq(tagsToQueries.tagId, tagId))
 							});
 
 							if (!existingAssociation) {

@@ -52,11 +52,6 @@ export async function load({ params: { id } }) {
 			error(404, 'No queries found for this thread');
 		}
 
-		console.log(
-			'Tool calls:',
-			thread.queries[0].toolCalls.map((toolCall) => toolCall.name)
-		);
-
 		return {
 			name: thread.queries[0].query,
 			result: thread.queries[0].result,

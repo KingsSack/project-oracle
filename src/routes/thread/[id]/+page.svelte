@@ -24,6 +24,7 @@
 	}
 
 	let { data, form }: { data: any; form: any } = $props();
+	
 	let response = $state(data.result || '');
 	let tags = $state<TagData[]>(data.tags || []);
 	let toolCalls = $state<ToolCallData[]>(data.toolCalls || []);
@@ -35,7 +36,7 @@
 		const cleanupFunctions: (() => void)[] = [];
 
 		if (data.result === null) {
-			const eventSource = new EventSource(`/api/response/${page.params.id}`);	
+			const eventSource = new EventSource(`/api/response/${page.params.id}`);
 
 			eventSource.onmessage = (event) => {
 				try {
@@ -50,7 +51,7 @@
 
 						if (data.content.name === 'search') {
 							sites.push({
-								name: "Google",
+								name: 'Google',
 								url: `https://www.google.com/search?q=${encodeURIComponent(data.content.input.query)}`
 							});
 						}
@@ -110,7 +111,7 @@
 
 		// Return cleanup function that closes all EventSources
 		return () => {
-			cleanupFunctions.forEach(cleanup => cleanup());
+			cleanupFunctions.forEach((cleanup) => cleanup());
 		};
 	});
 </script>
@@ -128,37 +129,50 @@
 		{/each}
 	</div>
 
-	<div>		
+	<div>
 		<TabGroup>
-			<Tab active={activeTab === 'response'} onclick={() => activeTab = 'response'}>Response</Tab>
+			<Tab active={activeTab === 'response'} onclick={() => (activeTab = 'response')}>Response</Tab>
 			{#if sites.length > 0}
-				<Tab active={activeTab === 'tools'} onclick={() => activeTab = 'sites'}>Sites</Tab>
+				<Tab active={activeTab === 'tools'} onclick={() => (activeTab = 'sites')}>Sites</Tab>
 			{/if}
 		</TabGroup>
 	</div>
 
 	{#if activeTab === 'response'}
 		{#each toolCalls as toolCall}
-			<div class="flex gap-2">
-				<div class="w-5 h-5 bg-secondary border border-border flex items-center justify-center text-muted-foreground text-xs aspect-square rounded-full">
+			<div class="flex gap-2 items-center">
+				<div
+					class="border-border text-muted-foreground flex aspect-square h-5 w-5 items-center justify-center rounded-full border text-xs font-extralight"
+				>
 					{toolCalls.indexOf(toolCall) + 1}
 				</div>
 				<ToolCall name={toolCall.name} input={toolCall.input} />
 			</div>
 		{/each}
 		<div class="flex gap-2">
-			<div class="w-5 h-5 bg-secondary border border-border flex items-center justify-center text-muted-foreground text-xs aspect-square rounded-full">
-				{toolCalls.length + 1}
+			<div class="flex w-5 h-6 items-center justify-center">
+				<div
+					class="border-border text-muted-foreground flex aspect-square h-5 w-5 items-center justify-center rounded-full border text-xs font-extralight"
+				>
+					{toolCalls.length + 1}
+				</div>
 			</div>
 			<Markdown content={response?.toString()} />
 		</div>
 	{:else if activeTab === 'sites'}
 		{#each sites as site}
 			<div class="flex gap-2">
-				<div class="w-5 h-5 bg-secondary border border-border flex items-center justify-center text-muted-foreground text-xs aspect-square rounded-full">
+				<div
+					class="bg-secondary border-border text-muted-foreground flex aspect-square h-5 w-5 items-center justify-center rounded-full border text-xs"
+				>
 					{sites.indexOf(site) + 1}
 				</div>
-				<a href={site.url} target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:underline">
+				<a
+					href={site.url}
+					target="_blank"
+					rel="noopener noreferrer"
+					class="text-blue-500 hover:underline"
+				>
 					{site.name}
 				</a>
 			</div>
@@ -184,7 +198,7 @@
 
 <form method="POST" action="?/query" class="m-0 w-full p-0" use:enhance>
 	<div
-		class="flex bg-gray border-border fixed bottom-0 mx-auto mb-4 w-full max-w-xl gap-1 rounded-xl border p-3 items-center"
+		class="bg-gray border-border fixed bottom-0 mx-auto mb-4 flex w-full max-w-xl items-center gap-1 rounded-xl border p-3"
 	>
 		<textarea
 			name="query"
@@ -192,12 +206,12 @@
 			placeholder="Follow up..."
 			autocomplete="off"
 			rows="1"
-			class="text-sm w-full"
+			class="w-full text-sm"
 			required
 		></textarea>
 		<button
 			type="submit"
-			class="rounded-md inline-flex items-center justify-center cursor-pointer gap-x-2 text-muted-foreground hover:text-foreground transition-colors"
+			class="text-muted-foreground hover:text-foreground inline-flex cursor-pointer items-center justify-center gap-x-2 rounded-md transition-colors"
 			aria-label="Submit"
 		>
 			<span class="material-symbols-rounded">send</span>

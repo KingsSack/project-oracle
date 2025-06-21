@@ -7,13 +7,27 @@ export const users = sqliteTable('users_table', {
 	email: text().notNull().unique()
 });
 
+export const modelGroups = sqliteTable('model_groups_table', {
+	id: int().primaryKey({ autoIncrement: true }),
+	name: text().notNull(),
+	tagsModel: text().notNull(),
+	responseModel: text().notNull(),
+	followUpModel: text().notNull(),
+	userId: int().references(() => users.id, { onDelete: 'cascade' })
+});
+
 export const threads = sqliteTable('threads_table', {
 	id: int().primaryKey({ autoIncrement: true }),
+	modelGroupsId: int().notNull().references(() => modelGroups.id, { onDelete: 'cascade' }),
 	timestamp: text().notNull(),
 	userId: int().references(() => users.id, { onDelete: 'cascade' })
 });
 
-export const threadRelations = relations(threads, ({ many }) => ({
+export const threadRelations = relations(threads, ({ one, many }) => ({
+	modelGroups: one(modelGroups, {
+		fields: [threads.modelGroupsId],
+		references: [modelGroups.id]
+	}),
 	queries: many(queries)
 }));
 
@@ -41,7 +55,9 @@ export const toolCalls = sqliteTable('tool_calls_table', {
 	input: text().notNull(), // JSON string
 	output: text(), // JSON string, nullable since it might not be available immediately
 	timestamp: text().notNull(),
-	queryId: int().references(() => queries.id, { onDelete: 'cascade' }).notNull()
+	queryId: int()
+		.references(() => queries.id, { onDelete: 'cascade' })
+		.notNull()
 });
 
 export const toolCallRelations = relations(toolCalls, ({ one }) => ({

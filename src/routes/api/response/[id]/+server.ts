@@ -1,12 +1,17 @@
 import { eq } from 'drizzle-orm';
 import { db } from '../../../../db/db.server';
 import { queries, threads, toolCalls } from '../../../../db/schema';
-import { generateResponseFlow } from '$lib/responses';
+import { generateResponseFlow } from '$lib/ai/responses';
 
 export async function GET({ params: { id } }) {
 	const thread = await db.query.threads.findFirst({
 		where: eq(threads.id, parseInt(id)),
 		with: {
+			modelGroups: {
+				columns: {
+					responseModel: true
+				}
+			},
 			queries: true
 		}
 	});
@@ -31,8 +36,11 @@ export async function GET({ params: { id } }) {
 				try {
 					const queryString = query.query.toString();
 					console.log('Processing query:', queryString);
-					
-					const response = generateResponseFlow.stream({ query: queryString });
+
+					const response = generateResponseFlow.stream({
+						model: thread.modelGroups.responseModel,
+						query: queryString
+					});
 
 					for await (const chunk of response.stream) {
 						if (chunk.toolRequests && chunk.toolRequests.length > 0) {
@@ -73,10 +81,14 @@ export async function GET({ params: { id } }) {
 					const output = await response.output;
 
 					try {
-						controller.enqueue(`data: ${JSON.stringify({ type: 'complete', content: output })}\n\n`);
+						controller.enqueue(
+							`data: ${JSON.stringify({ type: 'complete', content: output })}\n\n`
+						);
 					} catch (jsonError) {
 						console.error('Failed to serialize final output:', jsonError);
-						controller.enqueue(`data: ${JSON.stringify({ type: 'error', content: 'Failed to serialize final response' })}\n\n`);
+						controller.enqueue(
+							`data: ${JSON.stringify({ type: 'error', content: 'Failed to serialize final response' })}\n\n`
+						);
 					}
 
 					await db.update(queries).set({ result: output }).where(eq(queries.id, query.id));

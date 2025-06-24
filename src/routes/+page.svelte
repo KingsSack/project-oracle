@@ -4,8 +4,9 @@
 	import Selector from '$lib/components/selector.svelte';
 	import TabGroup from '$lib/components/tab-group.svelte';
 	import Tab from '$lib/components/tab.svelte';
+	import type { PageProps } from './$types';
 
-	let { data, form }: { data: any; form: any } = $props();
+	let { data, form }: PageProps = $props();
 
 	let projects = $state(data.projects || []);
 	let currentSource = $state('Web');

@@ -1,5 +1,8 @@
 <script lang="ts">
-	let { data, form }: { data: any, form: any } = $props();
+	import { enhance } from "$app/forms";
+	import type { PageProps } from "./$types";
+
+	let { data, form }: PageProps = $props();
 
 	interface ModelData {
 		id: number;
@@ -23,7 +26,7 @@
 	<h2 class="text-sm">Models</h2>
 
 	{#each models as model}
-		<form method="POST" action="?/delete-model">
+		<form method="POST" action="?/delete-model" use:enhance>
 			<div class="flex items-center justify-between">
 				<input type="hidden" name="id" value={model.id} required />
 				<p>{model.model}</p>
@@ -37,7 +40,7 @@
 	{/if}
 
 	{#if creatingModel}
-		<form method="POST" action="?/add-model">
+		<form method="POST" action="?/add-model" use:enhance>
 			<div class="bg-gray border-border flex flex-col space-y-2 rounded-xl border p-6">
 				<label class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-sm leading-5" for="model">Model</label>
 				<input

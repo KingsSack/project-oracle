@@ -7,7 +7,14 @@
 
 <div class="text-foreground">
 	<div class="flex items-center justify-between w-full p-2">
-		<div></div>
+		<div>
+			<a href="/" class="text-muted-foreground">
+				<span class="material-symbols-rounded">home</span>
+			</a>
+			<a href="/search" class="text-muted-foreground">
+				<span class="material-symbols-rounded">search</span>
+			</a>
+		</div>
 		<div class="flex items-center gap-2">
 			<a href="/settings" class="text-muted-foreground">
 				<span class="material-symbols-rounded">settings</span>

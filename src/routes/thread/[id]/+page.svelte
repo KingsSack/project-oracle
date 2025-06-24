@@ -7,6 +7,7 @@
 	import Tag from '$lib/components/tag.svelte';
 	import ToolCall from '$lib/components/tool-call.svelte';
 	import { onMount } from 'svelte';
+	import type { PageProps } from './$types';
 
 	interface SiteData {
 		name: string;
@@ -16,14 +17,14 @@
 	interface ToolCallData {
 		name: string;
 		input: string;
-		output: string;
+		output: string | null;
 	}
 
 	interface TagData {
 		name: string;
 	}
 
-	let { data, form }: { data: any; form: any } = $props();
+	let { data, form }: PageProps = $props();
 	
 	let response = $state(data.result || '');
 	let tags = $state<TagData[]>(data.tags || []);
@@ -125,7 +126,7 @@
 
 	<div class="flex gap-4">
 		{#each tags as tag}
-			<Tag>{tag.name}</Tag>
+			<Tag tag={tag.name} />
 		{/each}
 	</div>
 

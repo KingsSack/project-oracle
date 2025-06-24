@@ -1,7 +1,7 @@
 <script lang="ts">
-    let { children } = $props();
+    let { tag } = $props();
 </script>
 
-<a href="/" class="text-xs text-muted-foreground hover:text-foreground transition-colors">
-    {@render children()}
+<a href="/search?tags={tag}" class="text-xs text-muted-foreground hover:text-foreground transition-colors">
+    {tag}
 </a>

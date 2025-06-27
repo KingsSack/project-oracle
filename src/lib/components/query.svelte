@@ -1,13 +1,10 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
-	import { page } from '$app/state';
 	import Markdown from '$lib/components/markdown.svelte';
 	import TabGroup from '$lib/components/tab-group.svelte';
 	import Tab from '$lib/components/tab.svelte';
 	import Tag from '$lib/components/tag.svelte';
 	import ToolCall from '$lib/components/tool-call.svelte';
 	import { onMount } from 'svelte';
-	import type { PageProps } from './$types';
 
 	interface SiteData {
 		name: string;
@@ -24,20 +21,32 @@
 		name: string;
 	}
 
-	let { data, form }: PageProps = $props();
-	
-	let response = $state(data.result || '');
-	let tags = $state<TagData[]>(data.tags || []);
-	let toolCalls = $state<ToolCallData[]>(data.toolCalls || []);
-	let sites = $state<SiteData[]>(data.sites || []);
+	let { data } = $props();
+
+	console.log('Query data:', data);
+
+	let response = $derived(data.result || '');
+	let tags = $derived<TagData[]>(
+		data.tagsToQueries.map((tagToQuery: { tag: { name: string } }) => ({
+			name: tagToQuery.tag.name
+		})) || []
+	);
+	let toolCalls = $derived<ToolCallData[]>(
+		data.toolCalls.map((toolCall: { name: string; input: any; output: any }) => ({
+			name: toolCall.name,
+			input: toolCall.input,
+			output: toolCall.output
+		})) || []
+	);
+	// let sites = $derived<SiteData[]>(data.sites || []);
 
 	let activeTab = $state('response');
-
+		
 	onMount(() => {
 		const cleanupFunctions: (() => void)[] = [];
 
 		if (data.result === null) {
-			const eventSource = new EventSource(`/api/response/${page.params.id}`);
+			const eventSource = new EventSource(`/api/response/${data.threadId}/${data.id}`);
 
 			eventSource.onmessage = (event) => {
 				try {
@@ -51,10 +60,10 @@
 						});
 
 						if (data.content.name === 'search') {
-							sites.push({
-								name: 'Google',
-								url: `https://www.google.com/search?q=${encodeURIComponent(data.content.input.query)}`
-							});
+							// sites.push({
+							// 	name: 'Google',
+							// 	url: `https://www.google.com/search?q=${encodeURIComponent(data.content.input.query)}`
+							// });
 						}
 					} else if (data.type === 'chunk') {
 						response = (response || '') + data.content;
@@ -67,7 +76,6 @@
 					}
 				} catch (parseError) {
 					console.error('Failed to parse JSON from event:', event.data, parseError);
-					// Try to extract any readable error message
 					if (event.data.includes('error')) {
 						console.error('Streaming error: Failed to parse JSON');
 						eventSource.close();
@@ -82,8 +90,10 @@
 			cleanupFunctions.push(() => eventSource.close());
 		}
 
-		if (data.tags.length === 0) {
-			const eventSource = new EventSource(`/api/tags/${page.params.id}`);
+		console.log('Tags to queries:', data.tagsToQueries);
+		if (data.tagsToQueries.length === 0) {
+			console.log('No tags to queries found, streaming tags.');
+			const eventSource = new EventSource(`/api/tags/${data.threadId}/${data.id}`);
 
 			eventSource.onmessage = (event) => {
 				try {
@@ -110,19 +120,14 @@
 			cleanupFunctions.push(() => eventSource.close());
 		}
 
-		// Return cleanup function that closes all EventSources
 		return () => {
 			cleanupFunctions.forEach((cleanup) => cleanup());
 		};
 	});
 </script>
 
-{#if form?.error}
-	<p>{form.error}</p>
-{/if}
-
 <div class="flex w-full flex-col gap-4">
-	<h1 class="mb-2 text-start text-2xl font-medium">{data.name}</h1>
+	<h1 class="mb-2 text-start text-2xl font-medium">{data.query}</h1>
 
 	<div class="flex gap-4">
 		{#each tags as tag}
@@ -133,15 +138,15 @@
 	<div>
 		<TabGroup>
 			<Tab active={activeTab === 'response'} onclick={() => (activeTab = 'response')}>Response</Tab>
-			{#if sites.length > 0}
+			<!-- {#if sites.length > 0}
 				<Tab active={activeTab === 'tools'} onclick={() => (activeTab = 'sites')}>Sites</Tab>
-			{/if}
+			{/if} -->
 		</TabGroup>
 	</div>
 
 	{#if activeTab === 'response'}
 		{#each toolCalls as toolCall}
-			<div class="flex gap-2 items-center">
+			<div class="flex items-center gap-2">
 				<div
 					class="border-border text-muted-foreground flex aspect-square h-5 w-5 items-center justify-center rounded-full border text-xs font-extralight"
 				>
@@ -151,7 +156,7 @@
 			</div>
 		{/each}
 		<div class="flex gap-2">
-			<div class="flex w-5 h-6 items-center justify-center">
+			<div class="flex h-6 w-5 items-center justify-center">
 				<div
 					class="border-border text-muted-foreground flex aspect-square h-5 w-5 items-center justify-center rounded-full border text-xs font-extralight"
 				>
@@ -161,7 +166,7 @@
 			<Markdown content={response?.toString()} />
 		</div>
 	{:else if activeTab === 'sites'}
-		{#each sites as site}
+		<!-- {#each sites as site}
 			<div class="flex gap-2">
 				<div
 					class="bg-secondary border-border text-muted-foreground flex aspect-square h-5 w-5 items-center justify-center rounded-full border text-xs"
@@ -177,7 +182,7 @@
 					{site.name}
 				</a>
 			</div>
-		{/each}
+		{/each} -->
 	{/if}
 
 	<div class="flex gap-2">
@@ -191,31 +196,3 @@
 		</button> -->
 	</div>
 </div>
-
-<div class="align-end absolute right-0 mr-2 flex flex-col justify-center gap-4 text-end">
-	<!-- <a href="/" class="text-sm font-light">Test</a>
-    <a href="/" class="text-sm font-medium">Lorem Ipsum</a> -->
-</div>
-
-<form method="POST" action="?/query" class="m-0 w-full p-0" use:enhance>
-	<div
-		class="bg-gray border-border fixed bottom-0 mx-auto mb-4 flex w-full max-w-xl items-center gap-1 rounded-xl border p-3"
-	>
-		<textarea
-			name="query"
-			value={form?.query ?? ''}
-			placeholder="Follow up..."
-			autocomplete="off"
-			rows="1"
-			class="w-full text-sm"
-			required
-		></textarea>
-		<button
-			type="submit"
-			class="text-muted-foreground hover:text-foreground inline-flex cursor-pointer items-center justify-center gap-x-2 rounded-md transition-colors"
-			aria-label="Submit"
-		>
-			<span class="material-symbols-rounded">send</span>
-		</button>
-	</div>
-</form>

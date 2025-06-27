@@ -11,6 +11,7 @@ export async function load({ url }) {
 
         let queriesData = db.query.queries.findMany({
             columns: {
+                id: true,
                 query: true,
                 timestamp: true,
                 threadId: true
@@ -36,6 +37,7 @@ export async function load({ url }) {
             queriesData = db.query.queries.findMany({
                 where: sql`${queries.query} LIKE ${`%${searchParam}%`} COLLATE NOCASE`,
                 columns: {
+                    id: true,
                     query: true,
                     timestamp: true,
                     threadId: true
@@ -74,6 +76,7 @@ export async function load({ url }) {
                         )
                         : undefined,
                 columns: {
+                    id: true,
                     query: true,
                     timestamp: true,
                     threadId: true

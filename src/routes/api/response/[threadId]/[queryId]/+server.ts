@@ -1,11 +1,11 @@
 import { eq } from 'drizzle-orm';
-import { db } from '../../../../db/db.server';
-import { queries, threads, toolCalls } from '../../../../db/schema';
+import { db } from '../../../../../db/db.server';
+import { queries, threads, toolCalls } from '../../../../../db/schema';
 import { generateResponseFlow } from '$lib/ai/responses';
 
-export async function GET({ params: { id } }) {
+export async function GET({ params: { threadId, queryId } }) {
 	const thread = await db.query.threads.findFirst({
-		where: eq(threads.id, parseInt(id)),
+		where: eq(threads.id, parseInt(threadId)),
 		with: {
 			modelGroups: {
 				with: {
@@ -17,7 +17,9 @@ export async function GET({ params: { id } }) {
 					}
 				}
 			},
-			queries: true
+			queries: {
+				where: eq(queries.id, parseInt(queryId))
+			}
 		}
 	});
 

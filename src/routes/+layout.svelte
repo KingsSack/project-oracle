@@ -25,7 +25,7 @@
 		</div>
 	</div>
 
-	<div class="flex flex-col items-center justify-center min-h-svh w-full max-w-xl mx-auto gap-4">
+	<div class="flex flex-col items-center justify-center min-h-svh w-full max-w-xl mx-auto gap-4 overflow-y-hidden">
 		{@render children()}
 	</div>
 
@@ -76,5 +76,9 @@
 
 	:global(.bg-gray) {
 		background-color: hsl(0, 0%, 99%);
+	}
+
+	:global(html) {
+		scroll-behavior: smooth;
 	}
 </style>

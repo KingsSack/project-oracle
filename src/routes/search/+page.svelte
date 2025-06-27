@@ -31,8 +31,8 @@
 		goto(`?${params.toString()}`, { keepFocus: true, noScroll: true, replaceState: true });
 	}
 
-	function handleQueryClick(threadId: number) {
-		goto(`/thread/${threadId}`, { keepFocus: true, noScroll: true });
+	function handleQueryClick(threadId: number, queryId: number) {
+		goto(`/query/${queryId}`, { keepFocus: true, noScroll: true });
 	}
 </script>
 
@@ -89,13 +89,13 @@
 <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
 	{#if data.queries && data.queries.length > 0}
 		{#each data.queries as query}
-			<button onclick={() => handleQueryClick(query.threadId)} class="flex flex-col border border-border items-center justify-between rounded-xl p-4 cursor-pointer hover:bg-gray-50 transition-colors">
-				<div class="flex flex-col items-center justify-center gap-2 mb-3 w-full">
+			<button onclick={() => handleQueryClick(query.threadId, query.id)} class="flex flex-col border border-border justify-between rounded-xl p-4 cursor-pointer hover:bg-gray-50 transition-colors">
+				<div class="flex flex-col gap-2 mb-3 w-full text-left">
 					{query.query}
 					<div class="flex flex-wrap gap-2 text-muted-foreground text-xs font-extralight">
 						{#if query.tagsToQueries && query.tagsToQueries.length > 0}
 							{#each query.tagsToQueries as tag}
-								<span class="bg-gray rounded px-1">{tag.tag.name}</span>
+								<span>{tag.tag.name}</span>
 							{/each}
 						{/if}
 					</div>

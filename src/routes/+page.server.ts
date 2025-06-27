@@ -36,7 +36,7 @@ export const actions = {
 
 			const id = threadData[0].id;
 
-			await db
+			const queryData = await db
 				.insert(queries)
 				.values({
 					query: userQuery.toString(),
@@ -45,7 +45,7 @@ export const actions = {
 				})
 				.returning({ id: queries.id });
 
-			throw redirect(303, `/thread/${id}`);
+			throw redirect(303, `/query/${queryData[0].id}`);
 		} catch (error) {
 			if (error && typeof error === 'object' && 'status' in error && error.status === 303) {
 				throw error;

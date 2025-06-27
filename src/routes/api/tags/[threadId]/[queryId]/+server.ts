@@ -1,11 +1,11 @@
 import { eq, and } from 'drizzle-orm';
-import { db } from '../../../../db/db.server';
-import { tags, tagsToQueries, threads } from '../../../../db/schema';
+import { db } from '../../../../../db/db.server';
+import { queries, tags, tagsToQueries, threads } from '../../../../../db/schema';
 import { generateTagsFlow } from '$lib/ai/tags';
 
-export async function GET({ params: { id } }) {
+export async function GET({ params: { threadId, queryId } }) {
 	const thread = await db.query.threads.findFirst({
-		where: eq(threads.id, parseInt(id)),
+		where: eq(threads.id, parseInt(threadId)),
 		with: {
 			modelGroups: {
 				with: {
@@ -18,6 +18,7 @@ export async function GET({ params: { id } }) {
 				}
 			},
 			queries: {
+				where: eq(queries.id, parseInt(queryId)),
 				with: {
 					tagsToQueries: {
 						with: {
@@ -41,6 +42,14 @@ export async function GET({ params: { id } }) {
 	return new Response(
 		new ReadableStream({
 			async start(controller) {
+				if (!query) {
+					controller.enqueue(
+						`data: ${JSON.stringify({ type: 'error', content: 'Query not found' })}\n\n`
+					);
+					controller.close();
+					return;
+				}
+
 				if (queryTags.length > 0) {
 					controller.enqueue(
 						`data: ${JSON.stringify({ type: 'complete', content: queryTags })}\n\n`

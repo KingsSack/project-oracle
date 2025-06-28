@@ -18,7 +18,11 @@ export async function GET({ params: { threadId, queryId } }) {
 				}
 			},
 			queries: {
-				where: eq(queries.id, parseInt(queryId))
+				columns: {
+					id: true,
+					query: true,
+					result: true
+				}
 			}
 		}
 	});
@@ -27,7 +31,20 @@ export async function GET({ params: { threadId, queryId } }) {
 		return new Response('Thread not found', { status: 404 });
 	}
 
-	const query = thread.queries[0];
+	const query = thread.queries.find((q) => q.id === parseInt(queryId));
+
+	if (!query) {
+		return new Response('Query not found in thread', { status: 404 });
+	}
+
+	const history = thread.queries
+		.filter((q) => q.id !== query.id && q.result !== null)
+		.flatMap(
+			(q) => [
+				{ content: [{ text: q.query }], role: 'user' as const },
+				{ content: [{ text: q.result as string }], role: 'model' as const }
+			]
+		);
 
 	const modelGroup = thread.modelGroups;
 
@@ -46,11 +63,21 @@ export async function GET({ params: { threadId, queryId } }) {
 					const queryString = query.query.toString();
 					console.log('Processing query:', queryString);
 
-					const response = generateResponseFlow.stream({
-						model: modelGroup.responseModel.model,
-						provider: modelGroup.responseModel.provider,
-						query: queryString
-					});
+					let response;
+					if (history.length > 0) {
+						response = generateResponseFlow.stream({
+							model: modelGroup.responseModel.model,
+							provider: modelGroup.responseModel.provider,
+							query: queryString,
+							messages: history
+						});
+					} else {
+						response = generateResponseFlow.stream({
+							model: modelGroup.responseModel.model,
+							provider: modelGroup.responseModel.provider,
+							query: queryString
+						});
+					}
 
 					for await (const chunk of response.stream) {
 						if (chunk.toolRequests && chunk.toolRequests.length > 0) {

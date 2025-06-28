@@ -23,8 +23,6 @@
 
 	let { data } = $props();
 
-	console.log('Query data:', data);
-
 	let response = $derived(data.result || '');
 	let tags = $derived<TagData[]>(
 		data.tagsToQueries.map((tagToQuery: { tag: { name: string } }) => ({
@@ -42,7 +40,7 @@
 
 	let activeTab = $state('response');
 		
-	onMount(() => {
+	$effect(() => {
 		const cleanupFunctions: (() => void)[] = [];
 
 		if (data.result === null) {
@@ -53,11 +51,19 @@
 					const data = JSON.parse(event.data);
 
 					if (data.type === 'tool_request') {
-						toolCalls.push({
-							name: data.content.name,
-							input: data.content.input.query,
-							output: ''
-						});
+						toolCalls = [
+							...toolCalls,
+							{
+								name: data.content.name,
+								input: data.content.input.query,
+								output: ''
+							}
+						];
+						// toolCalls.push({
+						// 	name: data.content.name,
+						// 	input: data.content.input.query,
+						// 	output: ''
+						// });
 
 						if (data.content.name === 'search') {
 							// sites.push({
@@ -90,7 +96,6 @@
 			cleanupFunctions.push(() => eventSource.close());
 		}
 
-		console.log('Tags to queries:', data.tagsToQueries);
 		if (data.tagsToQueries.length === 0) {
 			console.log('No tags to queries found, streaming tags.');
 			const eventSource = new EventSource(`/api/tags/${data.threadId}/${data.id}`);
@@ -129,7 +134,7 @@
 <div class="flex w-full flex-col gap-4">
 	<h1 class="mb-2 text-start text-2xl font-medium">{data.query}</h1>
 
-	<div class="flex gap-4">
+	<div class="flex flex-wrap gap-x-4 gap-y-1">
 		{#each tags as tag}
 			<Tag tag={tag.name} />
 		{/each}

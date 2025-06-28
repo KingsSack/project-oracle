@@ -1,7 +1,7 @@
 <script lang="ts">
-    import { enhance } from '$app/forms';
-    
-    let { threadId, form } = $props();
+	import { enhance } from '$app/forms';
+
+	let { threadId, form } = $props();
 
 	let formElement: HTMLFormElement;
 	function handleKeyDown(event: KeyboardEvent) {

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 
-	let { threadId, form } = $props();
+	let { threadId, queryId, form } = $props();
 
 	let formElement: HTMLFormElement;
 	function handleKeyDown(event: KeyboardEvent) {
@@ -14,6 +14,7 @@
 
 <form method="POST" action="?/follow-up" class="m-0 w-full p-0" use:enhance bind:this={formElement}>
 	<input type="hidden" name="threadId" value={threadId} />
+	<input type="hidden" name="queryId" value={queryId} />
 	<div
 		class="bg-gray border-border fixed bottom-0 mx-auto mb-4 flex w-full max-w-xl items-center gap-1 rounded-xl border p-3"
 	>

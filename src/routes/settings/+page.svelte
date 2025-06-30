@@ -9,8 +9,8 @@
 		model: string;
 	}
 
-	let models: ModelData[] = $state(data.models || []);
-	let modelGroups = $state(data.modelGroups || []);
+	let models: ModelData[] = $derived(data.models || []);
+	let modelGroups = $derived(data.modelGroups || []);
 
 	let creatingModel = $state(false);
 	let creatingModelGroup = $state(false);

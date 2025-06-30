@@ -1,28 +1,35 @@
 import { eq, and } from 'drizzle-orm';
-import { db } from '../../../../../db/db.server';
-import { queries, tags, tagsToQueries, threads } from '../../../../../db/schema';
+import { db } from '../../../../db/db.server';
+import { queries, tags, tagsToQueries } from '../../../../db/schema';
 import { generateTagsFlow } from '$lib/ai/tags';
 
-export async function GET({ params: { threadId, queryId } }) {
-	const thread = await db.query.threads.findFirst({
-		where: eq(threads.id, parseInt(threadId)),
+export async function GET({ params: { id } }) {
+	const query = await db.query.queries.findFirst({
+		where: eq(queries.id, parseInt(id)),
+		columns: {
+			id: true,
+			query: true
+		},
 		with: {
-			modelGroups: {
+			thread: {
 				with: {
-					tagsModel: {
-						columns: {
-							model: true,
-							provider: true
+					modelGroups: {
+						with: {
+							tagsModel: {
+								columns: {
+									model: true,
+									provider: true
+								}
+							}
 						}
 					}
 				}
 			},
-			queries: {
-				where: eq(queries.id, parseInt(queryId)),
+			tagsToQueries: {
 				with: {
-					tagsToQueries: {
-						with: {
-							tag: true
+					tag: {
+						columns: {
+							name: true
 						}
 					}
 				}
@@ -30,14 +37,17 @@ export async function GET({ params: { threadId, queryId } }) {
 		}
 	});
 
-	if (!thread) {
-		return new Response('Thread not found', { status: 404 });
+	if (!query) {
+		return new Response('Query not found', { status: 404 });
 	}
 
-	const query = thread.queries[0];
-	const queryTags = thread.queries[0].tagsToQueries;
+	if (!query.thread) {
+		return new Response('Thread not found for this query', { status: 404 });
+	}
 
-	const modelGroup = thread.modelGroups;
+	const model = query.thread.modelGroups.tagsModel;
+	
+	const existingTags = query.tagsToQueries.map(t => t.tag.name);
 
 	return new Response(
 		new ReadableStream({
@@ -50,9 +60,9 @@ export async function GET({ params: { threadId, queryId } }) {
 					return;
 				}
 
-				if (queryTags.length > 0) {
+				if (existingTags.length > 0) {
 					controller.enqueue(
-						`data: ${JSON.stringify({ type: 'complete', content: queryTags })}\n\n`
+						`data: ${JSON.stringify({ type: 'complete', content: existingTags })}\n\n`
 					);
 					controller.close();
 					return;
@@ -60,8 +70,8 @@ export async function GET({ params: { threadId, queryId } }) {
 
 				try {
 					const response = generateTagsFlow.stream({
-						model: modelGroup.tagsModel.model,
-						provider: modelGroup.tagsModel.provider,
+						model: model.model,
+						provider: model.provider,
 						query: query.query.toString()
 					});
 

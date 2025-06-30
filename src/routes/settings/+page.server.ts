@@ -47,6 +47,8 @@ export const actions = {
 				error: error instanceof Error ? error.message : 'Unknown error'
 			});
 		}
+
+		return { success: true };
 	},
 	'add-group': async ({ request }) => {
 		const data = await request.formData();

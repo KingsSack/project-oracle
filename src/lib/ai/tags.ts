@@ -1,6 +1,5 @@
 import { z } from 'genkit';
 import { ai } from '../../ai/ai.server';
-import googleAI from '@genkit-ai/googleai';
 
 const GenerateTagsInputSchema = z.object({
 	model: z.string().default('gemini-2.0-flash-lite').describe('The model to use for generating tags. Defaults to "gemini-2.0-flash-lite".'),
@@ -29,7 +28,8 @@ export const generateTagsFlow = ai.defineFlow(
 	},
 	async ({ model, provider, query }, { sendChunk }) => {
 		const { stream, response } = ai.generateStream({
-			prompt: `Generate relevant tags for the following query. Return ONLY valid JSON without any markdown formatting, code blocks, or additional text.
+			prompt: `Generate relevant tags for the following query.
+			Return ONLY valid JSON without any markdown formatting, code blocks, or additional text.
 
 			Query: ${query}
 
@@ -68,11 +68,11 @@ export const generateTagsFlow = ai.defineFlow(
 		const { text } = await response;
 		
 		try {
-			// Clean the final response text
+			// Clean the final output
 			const cleanText = text.replace(/```json\n?|```\n?/g, '').trim();
 			return JSON.parse(cleanText);
 		} catch (e) {
-			console.error('Failed to parse final response:', text);
+			console.error('Failed to parse final output:', text);
 			// Return a fallback response
 			return { tags: [{ name: "general" }] };
 		}

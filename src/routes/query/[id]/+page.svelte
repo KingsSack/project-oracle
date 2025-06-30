@@ -15,4 +15,4 @@
 
 <ThreadNav queries={data.queries} queryId={data.query.id} />
 
-<FollowUpInput threadId={data.query.threadId} {form} />
+<FollowUpInput threadId={data.query.threadId} queryId={data.query.id} {form} />

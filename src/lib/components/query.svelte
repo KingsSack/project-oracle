@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
 	import Markdown from '$lib/components/markdown.svelte';
 	import TabGroup from '$lib/components/tab-group.svelte';
 	import Tab from '$lib/components/tab.svelte';
@@ -21,6 +22,10 @@
 		name: string;
 	}
 
+	interface FollowUpData {
+		query: string;
+	}
+
 	let { data } = $props();
 
 	let response = $derived(data.result || '');
@@ -34,6 +39,11 @@
 			name: toolCall.name,
 			input: toolCall.input,
 			output: toolCall.output
+		})) || []
+	);
+	let followUps = $derived<FollowUpData[]>(
+		data.followUps.map((followUp: { query: string }) => ({
+			query: followUp.query
 		})) || []
 	);
 	// let sites = $derived<SiteData[]>(data.sites || []);
@@ -94,11 +104,38 @@
 			};
 
 			cleanupFunctions.push(() => eventSource.close());
+
+			if (data.followUps.length === 0) {
+				const followUpEventSource = new EventSource(`/api/follow-ups/${data.id}`);
+
+				followUpEventSource.onmessage = (event) => {
+					try {
+						const data = JSON.parse(event.data);
+
+						if (data.type === 'chunk') {
+							followUps = data.content;
+						} else if (data.type === 'complete') {
+							followUps = data.content;
+							followUpEventSource.close();
+						} else if (data.type === 'error') {
+							followUpEventSource.close();
+						}
+					} catch (parseError) {
+						console.error('Failed to parse event data:', event.data, parseError);
+						followUpEventSource.close();
+					}
+				};
+
+				followUpEventSource.onerror = () => {
+					followUpEventSource.close();
+				};
+
+				cleanupFunctions.push(() => followUpEventSource.close());
+			}
 		}
 
 		if (data.tagsToQueries.length === 0) {
-			console.log('No tags to queries found, streaming tags.');
-			const eventSource = new EventSource(`/api/tags/${data.threadId}/${data.id}`);
+			const eventSource = new EventSource(`/api/tags/${data.id}`);
 
 			eventSource.onmessage = (event) => {
 				try {
@@ -190,14 +227,21 @@
 		{/each} -->
 	{/if}
 
-	<div class="flex gap-2">
-		<!-- <button
-			class="border-border text-muted-foreground cursor-pointer rounded-xl border px-3 py-1 text-sm font-medium"
-			aria-label="Lorem">Lorem
-		</button>
-		<button
-			class="border-border text-muted-foreground cursor-pointer rounded-xl border px-3 py-1 text-sm font-medium"
-			aria-label="Ipsum">Ipsum
-		</button> -->
-	</div>
+	<form method="POST" action="?/follow-up" class="m-0 w-full p-0" use:enhance>
+		<input type="hidden" name="threadId" value={data.threadId} />
+		<input type="hidden" name="queryId" value={data.id} />
+		<div class="flex flex-wrap gap-2">
+			{#each followUps as followUp}
+				<button
+					name="query"
+					value={followUp.query}
+					type="submit"
+					class="border-border text-muted-foreground cursor-pointer rounded-xl border px-3 py-1 text-sm font-medium"
+					aria-label="Follow up query: {followUp.query}"
+				>
+					{followUp.query}
+				</button>
+			{/each}
+		</div>
+	</form>
 </div>

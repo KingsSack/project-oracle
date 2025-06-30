@@ -1,7 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import { db } from '../../../db/db.server';
-import { queries } from '../../../db/schema';
+import { followUps, queries } from '../../../db/schema';
 
 export const actions = {
 	'follow-up': async ({ request }) => {
@@ -9,6 +9,7 @@ export const actions = {
 
 		const userQuery = data.get('query');
 		const threadId = data.get('threadId');
+		const queryId = data.get('queryId');
 
 		if (!userQuery) {
 			return fail(400, {
@@ -22,7 +23,15 @@ export const actions = {
 			});
 		}
 
+		if (!queryId || isNaN(parseInt(queryId.toString()))) {
+			return fail(400, {
+				error: 'Invalid query ID'
+			});
+		}
+
 		try {
+			await db.delete(followUps).where(eq(followUps.queryId, parseInt(queryId.toString())));
+
 			const queryData = await db
 				.insert(queries)
 				.values({
@@ -33,7 +42,7 @@ export const actions = {
 				.returning({
 					id: queries.id
 				});
-			
+
 			throw redirect(303, `/query/${queryData[0].id}`);
 		} catch (error) {
 			if (error && typeof error === 'object' && 'status' in error && error.status === 303) {
@@ -77,6 +86,11 @@ export async function load({ params: { id } }) {
 						name: true,
 						input: true,
 						output: true
+					}
+				},
+				followUps: {
+					columns: {
+						query: true
 					}
 				}
 			}

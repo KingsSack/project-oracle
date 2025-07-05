@@ -1,6 +1,6 @@
 import { fail } from '@sveltejs/kit';
-import { db } from '../../db/db.server';
-import { modelGroups, models } from '../../db/schema';
+import { db } from '../../../db/db.server';
+import { modelGroups, models } from '../../../db/schema';
 import { eq } from 'drizzle-orm';
 
 export const actions = {

@@ -50,9 +50,12 @@ export const modelGroupRelations = relations(modelGroups, ({ one }) => ({
 
 export const threads = sqliteTable('threads_table', {
 	id: int().primaryKey({ autoIncrement: true }),
+	title: text(),
 	modelGroupsId: int()
 		.notNull()
 		.references(() => modelGroups.id, { onDelete: 'cascade' }),
+	projectsId: int()
+		.references(() => projects.id, { onDelete: 'cascade' }),
 	timestamp: text().notNull(),
 	userId: int().references(() => users.id, { onDelete: 'cascade' })
 });
@@ -61,6 +64,10 @@ export const threadRelations = relations(threads, ({ one, many }) => ({
 	modelGroups: one(modelGroups, {
 		fields: [threads.modelGroupsId],
 		references: [modelGroups.id]
+	}),
+	projects: one(projects, {
+		fields: [threads.projectsId],
+		references: [projects.id]
 	}),
 	queries: many(queries)
 }));

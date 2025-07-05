@@ -1,12 +1,13 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
-import { db } from '../../../db/db.server';
-import { followUps, queries } from '../../../db/schema';
+import { db } from '../../../../db/db.server';
+import { followUps, queries } from '../../../../db/schema';
 
 export const actions = {
 	'follow-up': async ({ request }) => {
 		const data = await request.formData();
 
+		const project = data.get('project') || 'Default';
 		const userQuery = data.get('query');
 		const threadId = data.get('threadId');
 		const queryId = data.get('queryId');
@@ -43,7 +44,7 @@ export const actions = {
 					id: queries.id
 				});
 
-			throw redirect(303, `/query/${queryData[0].id}`);
+			throw redirect(303, `/${project.toString().toLowerCase()}/query/${queryData[0].id}`);
 		} catch (error) {
 			if (error && typeof error === 'object' && 'status' in error && error.status === 303) {
 				throw error;
@@ -57,8 +58,12 @@ export const actions = {
 	}
 };
 
-export async function load({ params: { id } }) {
+export async function load({ params: { id }, parent }) {
 	try {
+		const parentData = await parent();
+
+		const currentProject = parentData.selectedProject || 'Default';
+
 		const query = await db.query.queries.findFirst({
 			where: eq(queries.id, parseInt(id)),
 			columns: {
@@ -118,7 +123,8 @@ export async function load({ params: { id } }) {
 
 		return {
 			query: query,
-			queries: queriesData
+			queries: queriesData,
+			currentProject: currentProject
 		};
 	} catch (error) {
 		throw fail(404);

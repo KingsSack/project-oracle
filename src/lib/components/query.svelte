@@ -5,7 +5,6 @@
 	import Tab from '$lib/components/tab.svelte';
 	import Tag from '$lib/components/tag.svelte';
 	import ToolCall from '$lib/components/tool-call.svelte';
-	import { onMount } from 'svelte';
 
 	interface SiteData {
 		name: string;
@@ -26,7 +25,7 @@
 		query: string;
 	}
 
-	let { data } = $props();
+	let { data, project } = $props();
 
 	let response = $derived(data.result || '');
 	let tags = $derived<TagData[]>(
@@ -173,7 +172,7 @@
 
 	<div class="flex flex-wrap gap-x-4 gap-y-1">
 		{#each tags as tag}
-			<Tag tag={tag.name} />
+			<Tag tag={tag.name} project={project} />
 		{/each}
 	</div>
 
@@ -228,6 +227,7 @@
 	{/if}
 
 	<form method="POST" action="?/follow-up" class="m-0 w-full p-0" use:enhance>
+		<input type="hidden" name="project" value={project} />
 		<input type="hidden" name="threadId" value={data.threadId} />
 		<input type="hidden" name="queryId" value={data.id} />
 		<div class="flex flex-wrap gap-2">

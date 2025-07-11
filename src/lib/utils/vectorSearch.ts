@@ -97,14 +97,16 @@ export async function threadVectorSearch(query: string): Promise<ThreadSearchRes
 			? queryEmbedding[0]
 			: queryEmbedding;
 
-		const results: ThreadSearchResult[] = threadEmbeddings.map((embedding) => {
-			let storedEmbedding = JSON.parse(embedding.embedding);
-			storedEmbedding = Array.isArray(storedEmbedding[0]) ? storedEmbedding[0] : storedEmbedding;
-			return {
-				threadId: embedding.threadId,
-				similarity: cosineSimilarity(flatQueryEmbedding, storedEmbedding)
-			};
-		});
+		const results: ThreadSearchResult[] = threadEmbeddings
+			.map((embedding) => {
+				let storedEmbedding = JSON.parse(embedding.embedding);
+				storedEmbedding = Array.isArray(storedEmbedding[0]) ? storedEmbedding[0] : storedEmbedding;
+				return {
+					threadId: embedding.threadId,
+					similarity: cosineSimilarity(flatQueryEmbedding, storedEmbedding)
+				};
+			})
+			.filter(result => result.similarity >= 0.5);
 
 		return results.sort((a, b) => b.similarity - a.similarity);
 	} catch (error) {

@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
-import { sql } from 'drizzle-orm';
 import { db } from '../../../db/db.server';
 import { projects, tags, threads } from '../../../db/schema';
+import { enhancedSearch } from '../../../lib/services/searchService';
 import { fail } from '@sveltejs/kit';
 
 export async function load({ parent, url }) {
@@ -31,50 +31,23 @@ export async function load({ parent, url }) {
 		const searchParam = url.searchParams.get('search');
 		const selectedTagsParam = url.searchParams.getAll('tags');
 
-		let threadsData = db.query.threads.findMany({
-			where: eq(threads.projectsId, Number(projectsId)),
-			columns: {
-				id: true,
-                title: true
-			},
-			with: {
-				queries: {
-					columns: {
-						id: true,
-						query: true,
-						timestamp: true
-					},
-					with: {
-						tagsToQueries: {
-							columns: {
-								queryId: false,
-								tagId: false
-							},
-							with: {
-								tag: {
-									columns: {
-										name: true
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		});
+		let searchResults;
 
 		if (searchParam) {
-			threadsData = db.query.threads.findMany({
-				where: sql`${threads.title} LIKE ${`%${searchParam}%`} COLLATE NOCASE`,
+			searchResults = await enhancedSearch(searchParam, projectsId, selectedTagsParam, 20);
+		} else {
+			const threadsData = await db.query.threads.findMany({
+				where: projectsId ? eq(threads.projectsId, projectsId) : undefined,
 				columns: {
 					id: true,
-                    title: true
+					title: true
 				},
 				with: {
 					queries: {
 						columns: {
 							id: true,
 							query: true,
+							result: true,
 							timestamp: true
 						},
 						with: {
@@ -95,16 +68,20 @@ export async function load({ parent, url }) {
 					}
 				}
 			});
-		}
 
-		const filteredThreads = await threadsData;
+			searchResults = {
+				threads: threadsData,
+				totalResults: threadsData.length
+			};
+		}
 
 		return {
 			currentProject: currentProject,
 			tags: tagsData.map((tag) => tag.name),
-			threads: filteredThreads,
+			threads: searchResults.threads,
 			search: searchParam || '',
-			selectedTags: selectedTagsParam
+			selectedTags: selectedTagsParam,
+			totalResults: searchResults.totalResults
 		};
 	} catch (error) {
 		console.error('Error loading threads:', error);

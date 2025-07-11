@@ -4,11 +4,18 @@
 
 	interface Thread {
 		id: number;
-		title: string;
+		title: string | null;
+		similarity?: number;
 		queries: Array<{
 			id: number;
+			query: string;
 			timestamp: string;
-			tagsToQueries?: Array<{ tag: { name: string } }>;
+			similarity?: number;
+			tagsToQueries: Array<{
+				tag: {
+					name: string;
+				};
+			}>;
 		}>;
 	}
 
@@ -16,6 +23,8 @@
 
 	let selectedTags = $state(data.selectedTags ?? []);
 	let searchTerm = $state(data.search ?? '');
+	
+	let hasSearchTags = $derived(data.searchTags && data.searchTags.length > 0);
 
 	function removeTag(tagToRemove: string) {
 		selectedTags = selectedTags.filter((tag: string) => tag !== tagToRemove);
@@ -41,15 +50,20 @@
 		goto(`?${params.toString()}`, { keepFocus: true, noScroll: true, replaceState: true });
 	}
 
+	function handleSearchSubmit(event: Event) {
+		event.preventDefault();
+		updateURL();
+	}
+
 	function handleThreadClick(thread: Thread) {
-		goto(`/${data.currentProject.toLowerCase()}/query/${thread.queries[0]?.id}`, {
+		goto(`/${data.currentProject?.toLowerCase() || 'default'}/query/${thread.queries[0]?.id}`, {
 			keepFocus: true,
 			noScroll: true
 		});
 	}
 
 	function handleQueryClick(threadId: number, queryId: number) {
-		goto(`/${data.currentProject.toLowerCase()}/query/${queryId}`, {
+		goto(`/${data.currentProject?.toLowerCase() || 'default'}/query/${queryId}`, {
 			keepFocus: true,
 			noScroll: true
 		});
@@ -60,18 +74,18 @@
 	<div
 		class="bg-gray border-border mx-auto flex w-full max-w-xl items-center gap-1 rounded-xl border p-3"
 	>
-		<form onsubmit={updateURL} class="flex w-full items-center gap-1">
+		<form onsubmit={handleSearchSubmit} class="flex w-full items-center gap-1">
 			<input
 				name="search"
 				bind:value={searchTerm}
-				placeholder="Search..."
+				placeholder="Search threads, queries, and tags..."
 				autocomplete="off"
 				class="w-full bg-transparent text-sm outline-none"
 			/>
 			<button
 				type="submit"
 				class="text-muted-foreground hover:text-foreground inline-flex cursor-pointer items-center justify-center"
-				aria-label="Submit"
+				aria-label="Search"
 			>
 				<span class="material-symbols-rounded">search</span>
 			</button>
@@ -82,7 +96,7 @@
 			<span class="material-symbols-rounded">filter_list</span>
 			<select onchange={handleTagSelection}>
 				<option value="" disabled selected>Filter by tag</option>
-				{#each data.tags.filter((t: any) => !selectedTags.includes(t)) as tag}
+				{#each (data.tags || []).filter((t: any) => !selectedTags.includes(t)) as tag}
 					<option value={tag}>{tag}</option>
 				{/each}
 			</select>
@@ -104,26 +118,8 @@
 		</div>
 	</div>
 </div>
+
 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
-	<!-- {#if data.queries && data.queries.length > 0}
-		{#each data.queries as query}
-			<button onclick={() => handleQueryClick(query.threadId, query.id)} class="flex flex-col border border-border justify-between rounded-xl p-4 cursor-pointer hover:bg-gray-50 transition-colors">
-				<div class="flex flex-col gap-2 mb-3 w-full text-left">
-					{query.query}
-					<div class="flex flex-wrap gap-2 text-muted-foreground text-xs font-extralight">
-						{#if query.tagsToQueries && query.tagsToQueries.length > 0}
-							{#each query.tagsToQueries as tag}
-								<span>{tag.tag.name}</span>
-							{/each}
-						{/if}
-					</div>
-				</div>
-				<div class="flex gap-2 text-muted-foreground text-sm">
-					<span class="material-symbols-rounded">schedule</span>
-					{new Date(query.timestamp).toLocaleDateString()}
-				</div>
-			</button>
-		{/each} -->
 	{#if data.threads && data.threads.length > 0}
 		{#each data.threads as thread}
 			<button
@@ -131,16 +127,27 @@
 				class="border-border flex cursor-pointer flex-col justify-between rounded-xl border p-4 transition-colors hover:bg-gray-50"
 			>
 				<div class="mb-3 flex w-full flex-col gap-2 text-left">
-					{thread.title}
+					<div class="flex items-start justify-between gap-2">
+						<span class="flex-1">{thread.title}</span>
+				</div>
 					<div class="text-muted-foreground flex flex-wrap gap-2 text-xs font-extralight">
 						{#if thread.queries && thread.queries.length > 0}
-							{#each thread.queries as query}
-								{#if query.tagsToQueries && query.tagsToQueries.length > 0}
-									{#each query.tagsToQueries as tag}
-										<span>{tag.tag.name}</span>
-									{/each}
-								{/if}
+							{#each Array.from(
+								new Set(
+									thread.queries
+										.flatMap(query => query.tagsToQueries?.map(t => t.tag.name) ?? [])
+								)
+							).slice(0, 6) as tag}
+								<span>{tag}</span>
 							{/each}
+							{#if Array.from(
+								new Set(
+									thread.queries
+										.flatMap(query => query.tagsToQueries?.map(t => t.tag.name) ?? [])
+								)
+							).length > 6}
+								<span>...</span>
+							{/if}
 						{/if}
 					</div>
 				</div>
@@ -153,6 +160,15 @@
 			</button>
 		{/each}
 	{:else}
-		<p class="text-muted-foreground col-span-full text-center">No results found.</p>
+		<div class="col-span-full text-center py-12">
+			{#if data.search}
+				<p class="text-muted-foreground mb-2">No results found for "{data.search}"</p>
+			{:else}
+				<p class="text-muted-foreground mb-2">No threads found.</p>
+				<p class="text-sm text-muted-foreground">
+					Start a conversation to see your threads here.
+				</p>
+			{/if}
+		</div>
 	{/if}
 </div>

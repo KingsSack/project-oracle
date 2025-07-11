@@ -4,7 +4,7 @@
 
 <div class="text-sm text-muted-foreground">
 	{#if name === 'search'}
-		Searching for "{input}"
+		Searching for "{JSON.parse(input).query}"
 	{:else}
 		{name}
 	{/if}

@@ -73,10 +73,13 @@ const QueryGenerationStreamSchema = z.object({
 		.describe('The generated follow-ups')
 		.optional(),
 	title: z
-		.string()
-		.min(4, 'Title is required')
-		.max(64, 'Title must be less than 64 characters')
-		.describe('A short and descriptive title for the thread')
+		.object({
+			title: z
+				.string()
+				.min(4, 'Title is required')
+				.max(64, 'Title must be less than 64 characters')
+				.describe('A short and descriptive title for the thread')
+		})
 		.optional()
 });
 
@@ -104,11 +107,13 @@ const QueryGenerationOutputSchema = z.object({
 			})
 		)
 		.describe('The generated follow-ups'),
-	title: z
-		.string()
-		.min(4, 'Title is required')
-		.max(64, 'Title must be less than 64 characters')
-		.describe('A short and descriptive title for the thread')
+	title: z.object({
+		title: z
+			.string()
+			.min(4, 'Title is required')
+			.max(64, 'Title must be less than 64 characters')
+			.describe('A short and descriptive title for the thread')
+	})
 });
 
 export const queryGenerationFlow = ai.defineFlow(
@@ -303,38 +308,59 @@ export const queryGenerationFlow = ai.defineFlow(
 				}
 			}
 
+			const threadMessages = (messages ?? []).map((m) => `${m.role}: ${m.content[0].text}`);
+			threadMessages.push(`user: ${query}`);
+			threadMessages.push(`model: ${responseText}`);
+
 			const titleFlow = ai.generateStream({
 				prompt: `Generate a concise and descriptive title for a thread based on the following thread.
 				The title should summarize the main topic or question addressed by the query and response.
-				Output ONLY a single valid String without any markdown formatting, code blocks, or additional text.
+				Return ONLY valid JSON without any markdown formatting, code blocks, or additional text.
 
-				Thread: ${(messages ?? []).map((m) => `${m.role}: ${m.content[0].text}`).join('\n')}
+				Thread: ${threadMessages.join('\n')}
 
-				Example output:
-				How to optimize database queries for performance
+				Return exactly this JSON structure:
+				{"title": "Generated Title"}
 
 				Rules:
 				- Title should be 4-64 characters
 				- No markdown formatting
-				- No code blocks or backticks`,
+				- No code blocks or backticks
+				- Pure JSON only`,
 				model: titleModel.provider + '/' + titleModel.model
 			});
 
 			let titleText = '';
 			for await (const chunk of titleFlow.stream) {
-				sendChunk({ title: chunk.text });
 				titleText += chunk.text;
+				try {
+					const cleanTitleText = titleText.replace(/```json\n?|```\n?/g, '').trim();
+					const parsedTitle = JSON.parse(cleanTitleText);
+					sendChunk({ title: parsedTitle });
+				} catch (e) {
+					continue;
+				}
 			}
 
 			const titleResult = await titleFlow.response;
 			titleText = titleResult.text;
 
+			let generatedTitle;
 			try {
-				await db.update(threads).set({ title: titleText }).where(eq(threads.id, threadId));
+				const cleanTitleText = titleText.replace(/```json\n?|```\n?/g, '').trim();
+				generatedTitle = JSON.parse(cleanTitleText);
+			} catch (e) {
+				console.error('Failed to parse title:', titleText);
+				generatedTitle = { title: 'Untitled' };
+			}
 
-				const threadContext = `${titleText}\n\n${query}\n\n${responseText}`;
+			try {
+				await db
+					.update(threads)
+					.set({ title: generatedTitle.title })
+					.where(eq(threads.id, threadId));
 			} catch (dbError) {
-				console.error('Database error updating thread title:', titleText, dbError);
+				console.error('Database error updating thread title:', generatedTitle.title, dbError);
 			}
 
 			storeThreadEmbedding(threadId);
@@ -343,7 +369,7 @@ export const queryGenerationFlow = ai.defineFlow(
 				response: responseText,
 				tags: generatedTags.tags,
 				followUps: generatedFollowUps.followUps,
-				title: titleText
+				title: generatedTitle
 			};
 		} catch (error) {
 			console.error('Error in query generation flow:', error);

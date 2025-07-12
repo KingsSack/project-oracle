@@ -1,22 +1,37 @@
 <script lang="ts">
-	import { updated } from '$app/state';
-	import '../app.css';
+	import { page, updated } from '$app/state';
+	import '../../app.css';
+	import Selector from '$lib/components/selector.svelte';
+	import { goto } from '$app/navigation';
+	import type { LayoutProps } from './$types';
 
-	let { children } = $props();
+	let { data, children }: LayoutProps = $props();
+
+	let projects = $derived(data.projects || []);
+	let projectNames = $derived(projects.map((p) => p.name));
+	let currentProject = $derived(data.selectedProject || 'Default');
+
+	function selectProject(project: string) {
+		currentProject = project;
+		const id = projects.find((p) => p.name === project)?.id;
+		if (id) goto(`/project/${id}`);
+		else goto(`/project/0`);
+	}
 </script>
 
 <div class="text-foreground">
 	<div class="flex items-center justify-between w-full p-2">
 		<div>
-			<a href="/" class="text-muted-foreground">
+			<a href="/{page.params.project}" class="text-muted-foreground">
 				<span class="material-symbols-rounded">home</span>
 			</a>
-			<a href="/search" class="text-muted-foreground">
+			<a href="/{page.params.project}/search" class="text-muted-foreground">
 				<span class="material-symbols-rounded">search</span>
 			</a>
 		</div>
+		<Selector current={currentProject} items={['Default', ...projectNames]} onSelect={selectProject} />
 		<div class="flex items-center gap-2">
-			<a href="/settings" class="text-muted-foreground">
+			<a href="/{page.params.project}/settings" class="text-muted-foreground">
 				<span class="material-symbols-rounded">settings</span>
 			</a>
 			<a href="/profile" class="text-muted-foreground">

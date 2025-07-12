@@ -11,8 +11,8 @@
 	<p>{form.error}</p>
 {/if}
 
-<Query data={data.query} />
+<Query data={data.query} project={data.currentProject} />
 
-<ThreadNav queries={data.queries} queryId={data.query.id} />
+<ThreadNav queries={data.queries} queryId={data.query.id} project={data.currentProject} />
 
-<FollowUpInput threadId={data.query.threadId} queryId={data.query.id} {form} />
+<FollowUpInput threadId={data.query.threadId} queryId={data.query.id} project={data.currentProject} {form} />

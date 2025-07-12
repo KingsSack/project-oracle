@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { goto } from "$app/navigation";
 
-    let { queries, queryId } = $props();
+    let { queries, queryId, project } = $props();
 
     function selectQuery(queryId: number) {
-		goto(`/query/${queryId}`, { keepFocus: true, replaceState: true });
+		goto(`/${project.toLowerCase()}/query/${queryId}`, { keepFocus: true, replaceState: true });
 	}
 </script>
 

@@ -1,7 +1,7 @@
 <script lang="ts">
-    let { tag } = $props();
+    let { tag, project } = $props();
 </script>
 
-<a href="/search?tags={tag}" class="text-xs text-muted-foreground hover:text-foreground transition-colors">
+<a href="/{project.toLowerCase()}/search?tags={tag}" class="text-xs text-muted-foreground hover:text-foreground transition-colors">
     {tag}
 </a>

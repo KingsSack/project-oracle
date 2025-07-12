@@ -5,7 +5,6 @@
 	import Tab from '$lib/components/tab.svelte';
 	import Tag from '$lib/components/tag.svelte';
 	import ToolCall from '$lib/components/tool-call.svelte';
-	import { onMount } from 'svelte';
 
 	interface SiteData {
 		name: string;
@@ -26,19 +25,19 @@
 		query: string;
 	}
 
-	let { data } = $props();
+	let { data, project } = $props();
 
-	let response = $derived(data.result || '');
-	let tags = $derived<TagData[]>(
-		data.tagsToQueries.map((tagToQuery: { tag: { name: string } }) => ({
-			name: tagToQuery.tag.name
-		})) || []
-	);
 	let toolCalls = $derived<ToolCallData[]>(
 		data.toolCalls.map((toolCall: { name: string; input: any; output: any }) => ({
 			name: toolCall.name,
 			input: toolCall.input,
 			output: toolCall.output
+		})) || []
+	);
+	let response = $derived(data.result || '');
+	let tags = $derived<TagData[]>(
+		data.tagsToQueries.map((tagToQuery: { tag: { name: string } }) => ({
+			name: tagToQuery.tag.name
 		})) || []
 	);
 	let followUps = $derived<FollowUpData[]>(
@@ -65,15 +64,10 @@
 							...toolCalls,
 							{
 								name: data.content.name,
-								input: data.content.input.query,
+								input: JSON.stringify(data.content.input),
 								output: ''
 							}
 						];
-						// toolCalls.push({
-						// 	name: data.content.name,
-						// 	input: data.content.input.query,
-						// 	output: ''
-						// });
 
 						if (data.content.name === 'search') {
 							// sites.push({
@@ -81,10 +75,16 @@
 							// 	url: `https://www.google.com/search?q=${encodeURIComponent(data.content.input.query)}`
 							// });
 						}
-					} else if (data.type === 'chunk') {
+					} else if (data.type === 'response') {
 						response = (response || '') + data.content;
+					} else if (data.type === 'tags') {
+						tags = data.content;
+					} else if (data.type === 'follow_ups') {
+						followUps = data.content;
 					} else if (data.type === 'complete') {
-						response = data.content;
+						response = data.content.response || '';
+						tags = data.content.tags || [];
+						followUps = data.content.followUps || [];
 						eventSource.close();
 					} else if (data.type === 'error') {
 						console.error('Streaming error:', data.content);
@@ -96,62 +96,6 @@
 						console.error('Streaming error: Failed to parse JSON');
 						eventSource.close();
 					}
-				}
-			};
-
-			eventSource.onerror = () => {
-				eventSource.close();
-			};
-
-			cleanupFunctions.push(() => eventSource.close());
-
-			if (data.followUps.length === 0) {
-				const followUpEventSource = new EventSource(`/api/follow-ups/${data.id}`);
-
-				followUpEventSource.onmessage = (event) => {
-					try {
-						const data = JSON.parse(event.data);
-
-						if (data.type === 'chunk') {
-							followUps = data.content;
-						} else if (data.type === 'complete') {
-							followUps = data.content;
-							followUpEventSource.close();
-						} else if (data.type === 'error') {
-							followUpEventSource.close();
-						}
-					} catch (parseError) {
-						console.error('Failed to parse event data:', event.data, parseError);
-						followUpEventSource.close();
-					}
-				};
-
-				followUpEventSource.onerror = () => {
-					followUpEventSource.close();
-				};
-
-				cleanupFunctions.push(() => followUpEventSource.close());
-			}
-		}
-
-		if (data.tagsToQueries.length === 0) {
-			const eventSource = new EventSource(`/api/tags/${data.id}`);
-
-			eventSource.onmessage = (event) => {
-				try {
-					const data = JSON.parse(event.data);
-
-					if (data.type === 'chunk') {
-						tags = data.content;
-					} else if (data.type === 'complete') {
-						tags = data.content;
-						eventSource.close();
-					} else if (data.type === 'error') {
-						eventSource.close();
-					}
-				} catch (parseError) {
-					console.error('Failed to parse event data:', event.data, parseError);
-					eventSource.close();
 				}
 			};
 
@@ -173,7 +117,7 @@
 
 	<div class="flex flex-wrap gap-x-4 gap-y-1">
 		{#each tags as tag}
-			<Tag tag={tag.name} />
+			<Tag tag={tag.name} project={project} />
 		{/each}
 	</div>
 
@@ -228,6 +172,7 @@
 	{/if}
 
 	<form method="POST" action="?/follow-up" class="m-0 w-full p-0" use:enhance>
+		<input type="hidden" name="project" value={project} />
 		<input type="hidden" name="threadId" value={data.threadId} />
 		<input type="hidden" name="queryId" value={data.id} />
 		<div class="flex flex-wrap gap-2">

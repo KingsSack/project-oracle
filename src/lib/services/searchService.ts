@@ -1,6 +1,6 @@
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and, inArray, exists } from 'drizzle-orm';
 import { db } from '../../db/db.server';
-import { threads } from '../../db/schema';
+import { queries, tags, tagsToQueries, threads } from '../../db/schema';
 import { threadVectorSearch, storeEmbedding } from '../utils/vectorSearch';
 
 export interface EnhancedSearchResult {
@@ -65,7 +65,15 @@ async function performThreadVectorSearch(
 		const whereConditions = [inArray(threads.id, threadIds)];
 
 		if (selectedTags.length > 0) {
-			whereConditions.push();
+			const threadsWithSelectedTags = db
+				.select({ threadId: queries.threadId })
+				.from(queries)
+				.innerJoin(tagsToQueries, eq(queries.id, tagsToQueries.queryId))
+				.innerJoin(tags, eq(tagsToQueries.tagId, tags.id))
+				.where(inArray(tags.name, selectedTags))
+				.groupBy(queries.threadId);
+
+			whereConditions.push(inArray(threads.id, threadsWithSelectedTags));
 		}
 
 		if (projectId) {

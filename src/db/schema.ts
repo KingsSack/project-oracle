@@ -93,7 +93,6 @@ export const queryRelations = relations(queries, ({ one, many }) => ({
 		fields: [queries.userId],
 		references: [users.id]
 	}),
-	topics: many(topics),
 	tagsToQueries: many(tagsToQueries),
 	toolCalls: many(toolCalls),
 	followUps: many(followUps)
@@ -113,21 +112,6 @@ export const toolCalls = sqliteTable('tool_calls_table', {
 export const toolCallRelations = relations(toolCalls, ({ one }) => ({
 	query: one(queries, {
 		fields: [toolCalls.queryId],
-		references: [queries.id]
-	})
-}));
-
-export const topics = sqliteTable('topics_table', {
-	id: int().primaryKey({ autoIncrement: true }),
-	topic: text().notNull(),
-	queryId: int()
-		.references(() => queries.id, { onDelete: 'cascade' })
-		.notNull()
-});
-
-export const topicRelations = relations(topics, ({ one }) => ({
-	query: one(queries, {
-		fields: [topics.queryId],
 		references: [queries.id]
 	})
 }));

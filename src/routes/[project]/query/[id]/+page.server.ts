@@ -32,8 +32,6 @@ export const actions = {
 
 		const isNewThread = data.get('createNewThread') === 'true' || false;
 
-		console.log(`New thread: ${isNewThread}, data: ${data.get('createNewThread')}`);
-
 		try {
 			await db.delete(followUps).where(eq(followUps.queryId, parseInt(queryId.toString())));
 
@@ -107,11 +105,6 @@ export async function load({ params: { id }, parent }) {
 				threadId: true
 			},
 			with: {
-				topics: {
-					columns: {
-						topic: true
-					}
-				},
 				tagsToQueries: {
 					columns: {
 						queryId: false,

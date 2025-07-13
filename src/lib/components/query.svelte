@@ -5,6 +5,7 @@
 	import Tag from '$lib/components/tag.svelte';
 	import ToolCall from '$lib/components/tool-call.svelte';
 	import Topic from './topic.svelte';
+	import nlp from 'compromise';
 
 	interface ToolCallData {
 		name: string;
@@ -39,11 +40,6 @@
 		})) || []
 	);
 	let response = $derived(data.result || '');
-	let topics = $derived<TopicData[]>(
-		data.topics.map((topic: { topic: string }) => ({
-			topic: topic.topic
-		})) || []
-	);
 	let tags = $derived<TagData[]>(
 		data.tagsToQueries.map((tagToQuery: { tag: { name: string } }) => ({
 			name: tagToQuery.tag.name
@@ -61,32 +57,40 @@
 			.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
 			.replace(/\*(.*?)\*/g, '<em>$1</em>')
 			.replace(/`([^`]+)`/g, '<code>$1</code>')
-			.replace(/\s+/g, ' ')
-			.trim();
+			.replace(/\s+/g, ' ');
 	}
 
-	let responseWithTopics = $derived.by(() => {
-		if (!response || !topics || topics.length === 0) {
+	let nouns = $derived.by(() => {
+		if (!response) return [];
+
+		const doc = nlp(response);
+		return doc.nouns().out('array');
+	});
+
+	let responseWithNouns = $derived.by(() => {
+		if (!response || !nouns || nouns.length === 0) {
 			return [{ type: 'text' as const, content: processInlineMarkdown(response) }];
 		}
 
 		const parts: ResponsePart[] = [];
 		let lastIndex = 0;
-		const sortedTopics = Array.isArray(topics) ? [...topics].sort((a, b) => {
-			const aIndex = response.indexOf(a.topic);
-			const bIndex = response.indexOf(b.topic);
-			return aIndex - bIndex;
-		}) : [];
+		const sortedNouns = Array.isArray(nouns)
+			? [...nouns].sort((a, b) => {
+					const aIndex = response.indexOf(a);
+					const bIndex = response.indexOf(b);
+					return aIndex - bIndex;
+				})
+			: [];
 
-		for (const topic of sortedTopics) {
-			const index = response.indexOf(topic.topic, lastIndex);
+		for (const noun of sortedNouns) {
+			const index = response.indexOf(noun, lastIndex);
 			if (index !== -1 && index >= lastIndex) {
 				if (index > lastIndex) {
 					const textContent = response.slice(lastIndex, index);
 					parts.push({ type: 'text' as const, content: processInlineMarkdown(textContent) });
 				}
-				parts.push({ type: 'topic' as const, content: topic.topic });
-				lastIndex = index + topic.topic.length;
+				parts.push({ type: 'topic' as const, content: noun });
+				lastIndex = index + noun.length;
 			}
 		}
 
@@ -126,10 +130,6 @@
 							response = (response || '') + streamData.content;
 							break;
 
-						case 'topics':
-							topics = streamData.content;
-							break;
-
 						case 'tags':
 							tags = streamData.content;
 							break;
@@ -140,7 +140,6 @@
 
 						case 'complete':
 							response = streamData.content.response || '';
-							topics = streamData.content.topics || [];
 							tags = streamData.content.tags || [];
 							followUps = streamData.content.followUps || [];
 							eventSource.close();
@@ -226,7 +225,7 @@
 				<input type="hidden" name="threadId" value={data.threadId} />
 				<input type="hidden" name="queryId" value={data.id} />
 				<div class="response-content">
-					{#each responseWithTopics as part}
+					{#each responseWithNouns as part}
 						{#if part.type === 'text'}
 							{@html part.content}
 						{:else if part.type === 'topic'}

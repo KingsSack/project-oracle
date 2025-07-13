@@ -3,7 +3,7 @@ import { ai } from '../../ai/ai.server';
 import { search } from '../tools/search';
 import { eq, and } from 'drizzle-orm';
 import { db } from '../../db/db.server';
-import { tags, tagsToQueries, followUps, threads, queries, toolCalls, topics } from '../../db/schema';
+import { tags, tagsToQueries, followUps, threads, queries, toolCalls } from '../../db/schema';
 import { storeThreadEmbedding } from '$lib/services/searchService';
 
 const QueryGenerationInputSchema = z.object({
@@ -48,16 +48,6 @@ const QueryGenerationStreamSchema = z.object({
 		})
 		.optional(),
 	response: z.string().describe('The generated response').optional(),
-	topics: z
-		.array(
-			z.object({
-				topic: z
-					.string()
-					.describe('A topic from the response that the user might want to learn more about')
-			})
-		)
-		.describe('The generated topics')
-		.optional(),
 	tags: z
 		.array(
 			z.object({
@@ -95,15 +85,6 @@ const QueryGenerationStreamSchema = z.object({
 
 const QueryGenerationOutputSchema = z.object({
 	response: z.string().describe('The generated response'),
-	topics: z
-		.array(
-			z.object({
-				topic: z
-					.string()
-					.describe('A topic from the response that the user might want to learn more about')
-			})
-		)
-		.describe('The generated topics'),
 	tags: z
 		.array(
 			z.object({
@@ -193,63 +174,6 @@ export const queryGenerationFlow = ai.defineFlow(
 				const queryText = `${query}\n\n${responseText}`;
 			} catch (dbError) {
 				console.error('Database error updating query result:', dbError);
-			}
-
-			const topicsFlow = ai.generateStream({
-				prompt: `Generate a list of topics that the following response to a user's query.
-				These should be topics that the user might want to learn more about, based on their query.
-				Make sure the topics you generate are words or phrases that are present in the response.
-				Return ONLY valid JSON without any markdown formatting, code blocks, or additional text.
-				
-				Query: ${query}
-				Response: ${responseText}
-				
-				Return exactly this JSON structure:
-				{"topics": [{"topic": "topic1"}, {"topic": "topic2"}]}
-				
-				Rules:
-				- Topics must be present in the response
-				- Generate an amount of topics that makes sense for the response length
-				- Typically 2-6 topics for a medium-length response
-				- No markdown formatting
-				- No code blocks or backticks
-				- Pure JSON only`,
-				model: followUpModel.provider + '/' + followUpModel.model
-			});
-
-			let topicsText = '';
-			for await (const chunk of topicsFlow.stream) {
-				topicsText += chunk.text;
-				try {
-					const cleanTopicsText = topicsText.replace(/```json\n?|```\n?/g, '').trim();
-					const parsedTopics = JSON.parse(cleanTopicsText);
-					sendChunk({ topics: parsedTopics });
-				} catch (e) {
-					continue;
-				}
-			}
-
-			const topicsResult = await topicsFlow.response;
-			topicsText = topicsResult.text;
-
-			let generatedTopics;
-			try {
-				const cleanTopicsText = topicsText.replace(/```json\n?|```\n?/g, '').trim();
-				generatedTopics = JSON.parse(cleanTopicsText);
-			} catch (e) {
-				console.error('Failed to parse topics:', topicsText);
-				generatedTopics = {};
-			}
-
-			for (const topic of generatedTopics.topics || []) {
-				try {
-					await db.insert(topics).values({
-						topic: topic.topic,
-						queryId: queryId
-					});
-				} catch (dbError) {
-					console.error('Database error inserting topic:', topic.topic, dbError);
-				}
 			}
 
 			const tagsFlow = ai.generateStream({
@@ -443,7 +367,6 @@ export const queryGenerationFlow = ai.defineFlow(
 
 			return {
 				response: responseText,
-				topics: generatedTopics.topics,
 				tags: generatedTags.tags,
 				followUps: generatedFollowUps.followUps,
 				title: generatedTitle

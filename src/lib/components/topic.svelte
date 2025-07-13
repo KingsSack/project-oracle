@@ -22,13 +22,15 @@
 
 <svelte:window onkeydown={handleKeyDown} onkeyup={handleKeyUp} onmousemove={handleMouseMove} />
 
-<span class="text-muted-foreground bg-muted mx-1 inline rounded-lg px-1.5 py-0.5 text-sm">
+<span
+	class="inline cursor-pointer rounded-lg transition-all hover:bg-gray-100 hover:px-2 hover:py-0.5 hover:font-medium"
+>
 	<input type="hidden" name="createNewThread" value={createNewThread} />
 	<button
 		name="query"
 		value={topic}
 		type="submit"
-		class="cursor-pointer hover:font-medium hover:text-black"
+		class="cursor-pointer"
 		aria-label="Learn more about {topic}"
 	>
 		{topic}

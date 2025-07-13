@@ -1,20 +1,19 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import Markdown from '$lib/components/markdown.svelte';
 	import TabGroup from '$lib/components/tab-group.svelte';
 	import Tab from '$lib/components/tab.svelte';
 	import Tag from '$lib/components/tag.svelte';
 	import ToolCall from '$lib/components/tool-call.svelte';
-
-	interface SiteData {
-		name: string;
-		url: string;
-	}
+	import Topic from './topic.svelte';
 
 	interface ToolCallData {
 		name: string;
 		input: string;
 		output: string | null;
+	}
+
+	interface TopicData {
+		topic: string;
 	}
 
 	interface TagData {
@@ -23,6 +22,11 @@
 
 	interface FollowUpData {
 		query: string;
+	}
+
+	interface ResponsePart {
+		type: 'text' | 'topic';
+		content: string;
 	}
 
 	let { data, project } = $props();
@@ -35,6 +39,11 @@
 		})) || []
 	);
 	let response = $derived(data.result || '');
+	let topics = $derived<TopicData[]>(
+		data.topics.map((topic: { topic: string }) => ({
+			topic: topic.topic
+		})) || []
+	);
 	let tags = $derived<TagData[]>(
 		data.tagsToQueries.map((tagToQuery: { tag: { name: string } }) => ({
 			name: tagToQuery.tag.name
@@ -45,50 +54,105 @@
 			query: followUp.query
 		})) || []
 	);
-	// let sites = $derived<SiteData[]>(data.sites || []);
+
+	function processInlineMarkdown(text: string): string {
+		return text
+			.replace(/\n+/g, ' ')
+			.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+			.replace(/\*(.*?)\*/g, '<em>$1</em>')
+			.replace(/`([^`]+)`/g, '<code>$1</code>')
+			.replace(/\s+/g, ' ')
+			.trim();
+	}
+
+	let responseWithTopics = $derived.by(() => {
+		if (!response || !topics || topics.length === 0) {
+			return [{ type: 'text' as const, content: processInlineMarkdown(response) }];
+		}
+
+		const parts: ResponsePart[] = [];
+		let lastIndex = 0;
+		const sortedTopics = Array.isArray(topics) ? [...topics].sort((a, b) => {
+			const aIndex = response.indexOf(a.topic);
+			const bIndex = response.indexOf(b.topic);
+			return aIndex - bIndex;
+		}) : [];
+
+		for (const topic of sortedTopics) {
+			const index = response.indexOf(topic.topic, lastIndex);
+			if (index !== -1 && index >= lastIndex) {
+				if (index > lastIndex) {
+					const textContent = response.slice(lastIndex, index);
+					parts.push({ type: 'text' as const, content: processInlineMarkdown(textContent) });
+				}
+				parts.push({ type: 'topic' as const, content: topic.topic });
+				lastIndex = index + topic.topic.length;
+			}
+		}
+
+		if (lastIndex < response.length) {
+			const textContent = response.slice(lastIndex);
+			parts.push({ type: 'text' as const, content: processInlineMarkdown(textContent) });
+		}
+
+		return parts;
+	});
 
 	let activeTab = $state('response');
-		
+
 	$effect(() => {
 		const cleanupFunctions: (() => void)[] = [];
 
 		if (data.result === null) {
 			const eventSource = new EventSource(`/api/response/${data.threadId}/${data.id}`);
 
-			eventSource.onmessage = (event) => {
+			const handleMessage = (event: MessageEvent) => {
 				try {
-					const data = JSON.parse(event.data);
+					const streamData = JSON.parse(event.data);
 
-					if (data.type === 'tool_request') {
-						toolCalls = [
-							...toolCalls,
-							{
-								name: data.content.name,
-								input: JSON.stringify(data.content.input),
-								output: ''
-							}
-						];
+					switch (streamData.type) {
+						case 'tool_request':
+							toolCalls = [
+								...toolCalls,
+								{
+									name: streamData.content.name,
+									input: JSON.stringify(streamData.content.input),
+									output: ''
+								}
+							];
+							break;
 
-						if (data.content.name === 'search') {
-							// sites.push({
-							// 	name: 'Google',
-							// 	url: `https://www.google.com/search?q=${encodeURIComponent(data.content.input.query)}`
-							// });
-						}
-					} else if (data.type === 'response') {
-						response = (response || '') + data.content;
-					} else if (data.type === 'tags') {
-						tags = data.content;
-					} else if (data.type === 'follow_ups') {
-						followUps = data.content;
-					} else if (data.type === 'complete') {
-						response = data.content.response || '';
-						tags = data.content.tags || [];
-						followUps = data.content.followUps || [];
-						eventSource.close();
-					} else if (data.type === 'error') {
-						console.error('Streaming error:', data.content);
-						eventSource.close();
+						case 'response':
+							response = (response || '') + streamData.content;
+							break;
+
+						case 'topics':
+							topics = streamData.content;
+							break;
+
+						case 'tags':
+							tags = streamData.content;
+							break;
+
+						case 'follow_ups':
+							followUps = streamData.content;
+							break;
+
+						case 'complete':
+							response = streamData.content.response || '';
+							topics = streamData.content.topics || [];
+							tags = streamData.content.tags || [];
+							followUps = streamData.content.followUps || [];
+							eventSource.close();
+							break;
+
+						case 'error':
+							console.error('Streaming error:', streamData.content);
+							eventSource.close();
+							break;
+
+						default:
+							console.warn('Unknown stream data type:', streamData.type);
 					}
 				} catch (parseError) {
 					console.error('Failed to parse JSON from event:', event.data, parseError);
@@ -99,11 +163,19 @@
 				}
 			};
 
-			eventSource.onerror = () => {
+			const handleError = () => {
+				console.error('EventSource connection error');
 				eventSource.close();
 			};
 
-			cleanupFunctions.push(() => eventSource.close());
+			eventSource.addEventListener('message', handleMessage);
+			eventSource.addEventListener('error', handleError);
+
+			cleanupFunctions.push(() => {
+				eventSource.removeEventListener('message', handleMessage);
+				eventSource.removeEventListener('error', handleError);
+				eventSource.close();
+			});
 		}
 
 		return () => {
@@ -117,7 +189,7 @@
 
 	<div class="flex flex-wrap gap-x-4 gap-y-1">
 		{#each tags as tag}
-			<Tag tag={tag.name} project={project} />
+			<Tag tag={tag.name} {project} />
 		{/each}
 	</div>
 
@@ -149,7 +221,20 @@
 					{toolCalls.length + 1}
 				</div>
 			</div>
-			<Markdown content={response?.toString()} />
+			<form method="POST" action="?/follow-up" class="m-0 p-0" use:enhance>
+				<input type="hidden" name="project" value={project} />
+				<input type="hidden" name="threadId" value={data.threadId} />
+				<input type="hidden" name="queryId" value={data.id} />
+				<div class="response-content">
+					{#each responseWithTopics as part}
+						{#if part.type === 'text'}
+							{@html part.content}
+						{:else if part.type === 'topic'}
+							<Topic topic={part.content} />
+						{/if}
+					{/each}
+				</div>
+			</form>
 		</div>
 	{:else if activeTab === 'sites'}
 		<!-- {#each sites as site}
@@ -190,3 +275,27 @@
 		</div>
 	</form>
 </div>
+
+<style>
+	.response-content {
+		line-height: 1.6;
+		display: inline;
+	}
+
+	.response-content :global(strong) {
+		font-weight: 600;
+	}
+
+	.response-content :global(em) {
+		font-style: italic;
+	}
+
+	.response-content :global(code) {
+		background-color: hsl(210, 20%, 98%);
+		padding: 0.125rem 0.25rem;
+		border-radius: 0.25rem;
+		font-size: 0.875em;
+		font-weight: 500;
+		font-family: monospace;
+	}
+</style>

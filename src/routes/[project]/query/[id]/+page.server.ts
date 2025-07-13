@@ -73,6 +73,11 @@ export async function load({ params: { id }, parent }) {
 				threadId: true
 			},
 			with: {
+				topics: {
+					columns: {
+						topic: true
+					}
+				},
 				tagsToQueries: {
 					columns: {
 						queryId: false,

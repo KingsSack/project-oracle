@@ -40,7 +40,7 @@
         }
     });
 
-    function renderContent() {
+    async function renderContent() {
         if (!content) {
             renderedHtml = '';
             return;
@@ -66,7 +66,8 @@
                     }
                 });
             
-            renderedHtml = marked(processedContent);
+            const result = await marked(processedContent);
+            renderedHtml = result;
         } catch (error) {
             console.error('Markdown rendering error:', error);
             renderedHtml = content;

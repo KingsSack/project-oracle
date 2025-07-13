@@ -95,6 +95,11 @@ export async function GET({ params: { threadId, queryId } }) {
 								`data: ${JSON.stringify({ type: 'response', content: chunk.response })}\n\n`
 							);
 						}
+						if (chunk.topics) {
+							controller.enqueue(
+								`data: ${JSON.stringify({ type: 'topics', content: chunk.topics })}\n\n`
+							);
+						}
 						if (chunk.tags) {
 							controller.enqueue(
 								`data: ${JSON.stringify({ type: 'tags', content: chunk.tags })}\n\n`

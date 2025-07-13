@@ -1,7 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import { db } from '../../../../db/db.server';
-import { followUps, queries } from '../../../../db/schema';
+import { followUps, projects, queries, threads } from '../../../../db/schema';
 
 export const actions = {
 	'follow-up': async ({ request }) => {
@@ -9,7 +9,7 @@ export const actions = {
 
 		const project = data.get('project') || 'Default';
 		const userQuery = data.get('query');
-		const threadId = data.get('threadId');
+		let threadId = data.get('threadId');
 		const queryId = data.get('queryId');
 
 		if (!userQuery) {
@@ -30,8 +30,42 @@ export const actions = {
 			});
 		}
 
+		const isNewThread = data.get('createNewThread') === 'true' || false;
+
+		console.log(`New thread: ${isNewThread}, data: ${data.get('createNewThread')}`);
+
 		try {
 			await db.delete(followUps).where(eq(followUps.queryId, parseInt(queryId.toString())));
+
+			if (isNewThread) {
+				const currentThreadData = await db
+					.select({
+						modelGroupsId: threads.modelGroupsId,
+						projectsId: threads.projectsId
+					})
+					.from(threads)
+					.where(eq(threads.id, parseInt(threadId.toString())))
+					.limit(1);
+				
+				if (currentThreadData.length === 0) {
+					return fail(404, {
+						error: 'Original thread not found'
+					});
+				}
+
+				const { modelGroupsId, projectsId } = currentThreadData[0];
+
+				const newThreadData = await db
+					.insert(threads)
+					.values({
+						modelGroupsId: modelGroupsId,
+						projectsId: projectsId,
+						timestamp: new Date().toISOString()
+					})
+					.returning({ id: threads.id });
+				
+				threadId = newThreadData[0].id.toString();
+			}
 
 			const queryData = await db
 				.insert(queries)

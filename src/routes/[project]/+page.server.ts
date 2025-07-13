@@ -25,7 +25,6 @@ export const actions = {
 		}
 
 		try {
-			// Resolve the model group ID (handles "Auto" case)
 			const selectedModelGroupId = await resolveModelGroupId(modelGroup.toString());
 
 			let projectsId: number | undefined;

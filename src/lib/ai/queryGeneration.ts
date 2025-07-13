@@ -196,7 +196,7 @@ export const queryGenerationFlow = ai.defineFlow(
 			}
 
 			const topicsFlow = ai.generateStream({
-				prompt: `Generate a list of key words or topics that are part of this response to a user's query.
+				prompt: `Generate a list of topics that the following response to a user's query.
 				These should be topics that the user might want to learn more about, based on their query.
 				Make sure the topics you generate are words or phrases that are present in the response.
 				Return ONLY valid JSON without any markdown formatting, code blocks, or additional text.
@@ -210,6 +210,7 @@ export const queryGenerationFlow = ai.defineFlow(
 				Rules:
 				- Topics must be present in the response
 				- Generate an amount of topics that makes sense for the response length
+				- Typically 2-6 topics for a medium-length response
 				- No markdown formatting
 				- No code blocks or backticks
 				- Pure JSON only`,

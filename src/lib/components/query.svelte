@@ -61,7 +61,7 @@
 	}
 
 	let nouns = $derived.by(() => {
-		if (!response) return [];
+		if (!response || response === '') return [];
 
 		const doc = nlp(response);
 		return doc.nouns().out('array');

@@ -28,7 +28,7 @@
 	<input type="hidden" name="createNewThread" value={createNewThread} />
 	<button
 		name="query"
-		value={topic}
+		value={topic.replace(/[^\w\s]/g, '')}
 		type="submit"
 		class="cursor-pointer"
 		aria-label="Learn more about {topic}"

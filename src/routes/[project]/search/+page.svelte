@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
 	import type { PageProps } from './$types';
 
 	interface Thread {
@@ -23,21 +24,11 @@
 
 	let selectedTags = $state(data.selectedTags ?? []);
 	let searchTerm = $state(data.search ?? '');
-	
-	let hasSearchTags = $derived(data.searchTags && data.searchTags.length > 0);
+	let tagSearchTerm = $state('');
+	let isTagDropdownOpen = $state(false);
 
 	function removeTag(tagToRemove: string) {
 		selectedTags = selectedTags.filter((tag: string) => tag !== tagToRemove);
-		updateURL();
-	}
-
-	function handleTagSelection(event: Event & { currentTarget: HTMLSelectElement }) {
-		const newTag = event.currentTarget.value;
-		if (newTag && !selectedTags.includes(newTag)) {
-			selectedTags.push(newTag);
-			selectedTags = selectedTags;
-		}
-		event.currentTarget.value = '';
 		updateURL();
 	}
 
@@ -68,6 +59,48 @@
 			noScroll: true
 		});
 	}
+
+	function addTag(tag: string) {
+		if (tag && !selectedTags.includes(tag)) {
+			selectedTags.push(tag);
+			selectedTags = selectedTags;
+		}
+		tagSearchTerm = '';
+		isTagDropdownOpen = false;
+		updateURL();
+	}
+
+	function toggleTagDropdown() {
+		isTagDropdownOpen = !isTagDropdownOpen;
+		if (isTagDropdownOpen) {
+			tagSearchTerm = '';
+		}
+	}
+
+	function handleTagSearch(event: Event & { currentTarget: HTMLInputElement }) {
+		tagSearchTerm = event.currentTarget.value;
+	}
+
+	let filteredTags = $derived(
+		(data.tags || [])
+			.filter((tag: string) => !selectedTags.includes(tag))
+			.filter((tag: string) => tag.toLowerCase().includes(tagSearchTerm.toLowerCase()))
+	);
+
+	let tagDropdownRef: HTMLDivElement;
+
+	onMount(() => {
+		function handleClickOutside(event: MouseEvent) {
+			if (tagDropdownRef && !tagDropdownRef.contains(event.target as Node)) {
+				isTagDropdownOpen = false;
+			}
+		}
+
+		document.addEventListener('click', handleClickOutside);
+		return () => {
+			document.removeEventListener('click', handleClickOutside);
+		};
+	});
 </script>
 
 <div class="flex w-full flex-col gap-1">
@@ -92,14 +125,51 @@
 		</form>
 	</div>
 	<div class="flex gap-2">
-		<div class="text-muted-foreground flex items-center gap-1 text-xs font-extralight">
+		<div class="text-muted-foreground relative flex items-center gap-1 text-xs font-extralight">
 			<span class="material-symbols-rounded">filter_list</span>
-			<select onchange={handleTagSelection}>
-				<option value="" disabled selected>Filter by tag</option>
-				{#each (data.tags || []).filter((t: any) => !selectedTags.includes(t)) as tag}
-					<option value={tag}>{tag}</option>
-				{/each}
-			</select>
+			<div class="relative" bind:this={tagDropdownRef}>
+				<button
+					type="button"
+					onclick={toggleTagDropdown}
+					class="flex gap-1 cursor-pointer items-center justify-between px-2 py-1"
+				>
+					<span>Filter by tag</span>
+					<span class="material-symbols-rounded text-base">
+						{isTagDropdownOpen ? 'unfold_less' : 'unfold_more'}
+					</span>
+				</button>
+				{#if isTagDropdownOpen}
+					<div
+						class="border-border bg-background absolute top-full left-0 z-10 mt-1 w-64 rounded border shadow-lg"
+					>
+						<div class="p-2">
+							<input
+								type="text"
+								bind:value={tagSearchTerm}
+								oninput={handleTagSearch}
+								placeholder="Search tags..."
+								class="border-border w-full rounded border px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-blue-500"
+							/>
+						</div>
+						<div class="max-h-48 overflow-y-auto">
+							{#each filteredTags as tag}
+								<button
+									type="button"
+									onclick={() => addTag(tag)}
+									class="w-full px-3 py-2 text-left text-sm transition-colors hover:bg-gray-50"
+								>
+									{tag}
+								</button>
+							{/each}
+							{#if filteredTags.length === 0}
+								<div class="text-muted-foreground px-3 py-2 text-sm">
+									{tagSearchTerm ? 'No tags found' : 'No available tags'}
+								</div>
+							{/if}
+						</div>
+					</div>
+				{/if}
+			</div>
 		</div>
 		<div class="text-muted-foreground flex gap-2 text-xs font-extralight">
 			{#each selectedTags as tag}
@@ -129,23 +199,13 @@
 				<div class="mb-3 flex w-full flex-col gap-2 text-left">
 					<div class="flex items-start justify-between gap-2">
 						<span class="flex-1">{thread.title}</span>
-				</div>
+					</div>
 					<div class="text-muted-foreground flex flex-wrap gap-2 text-xs font-extralight">
 						{#if thread.queries && thread.queries.length > 0}
-							{#each Array.from(
-								new Set(
-									thread.queries
-										.flatMap(query => query.tagsToQueries?.map(t => t.tag.name) ?? [])
-								)
-							).slice(0, 6) as tag}
+							{#each Array.from(new Set(thread.queries.flatMap((query) => query.tagsToQueries?.map((t) => t.tag.name) ?? []))).slice(0, 6) as tag}
 								<span>{tag}</span>
 							{/each}
-							{#if Array.from(
-								new Set(
-									thread.queries
-										.flatMap(query => query.tagsToQueries?.map(t => t.tag.name) ?? [])
-								)
-							).length > 6}
+							{#if Array.from(new Set(thread.queries.flatMap((query) => query.tagsToQueries?.map((t) => t.tag.name) ?? []))).length > 6}
 								<span>...</span>
 							{/if}
 						{/if}
@@ -160,14 +220,12 @@
 			</button>
 		{/each}
 	{:else}
-		<div class="col-span-full text-center py-12">
+		<div class="col-span-full py-12 text-center">
 			{#if data.search}
 				<p class="text-muted-foreground mb-2">No results found for "{data.search}"</p>
 			{:else}
 				<p class="text-muted-foreground mb-2">No threads found.</p>
-				<p class="text-sm text-muted-foreground">
-					Start a conversation to see your threads here.
-				</p>
+				<p class="text-muted-foreground text-sm">Start a conversation to see your threads here.</p>
 			{/if}
 		</div>
 	{/if}

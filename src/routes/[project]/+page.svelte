@@ -42,7 +42,7 @@
 			placeholder="Find what you are looking for..."
 			autocomplete="off"
 			rows="7"
-			class="text-sm"
+			class="text-sm outline-none"
 			required
 			onkeydown={handleKeyDown}
 		></textarea>

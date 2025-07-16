@@ -1,7 +1,7 @@
 import { z } from 'genkit';
 import { ai } from '../../ai/ai.server';
 import { search } from '../tools/search';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { db } from '../../db/db.server';
 import { tags, tagsToQueries, followUps, threads, queries, toolCalls } from '../../db/schema';
 import { storeThreadEmbedding } from '$lib/services/searchService';
@@ -47,6 +47,7 @@ const QueryGenerationStreamSchema = z.object({
 			input: z.unknown().optional().describe('The input parameters for the tool')
 		})
 		.optional(),
+	toolResponse: z.string().describe('A JSON string of a tool response').optional(),
 	response: z.string().describe('The generated response').optional(),
 	tags: z
 		.array(
@@ -156,6 +157,25 @@ export const queryGenerationFlow = ai.defineFlow(
 							});
 						} catch (dbError) {
 							console.error('Database error inserting tool call:', toolCall.name, dbError);
+						}
+					}
+				}
+				for (const content of chunk.content) {
+					if (content.toolResponse) {
+						sendChunk({ toolResponse: JSON.stringify(content.toolResponse.output) });
+						try {
+							const lastToolCall = await db.query.toolCalls.findFirst({
+								where: eq(toolCalls.queryId, queryId),
+								orderBy: [desc(toolCalls.id)]
+							});
+							if (lastToolCall) {
+								await db
+									.update(toolCalls)
+									.set({ output: JSON.stringify(content.toolResponse.output) })
+									.where(eq(toolCalls.id, lastToolCall.id));
+							}
+						} catch (dbError) {
+							console.error('Database error updating tool call output:', dbError);
 						}
 					}
 				}

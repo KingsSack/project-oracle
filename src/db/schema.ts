@@ -101,8 +101,8 @@ export const queryRelations = relations(queries, ({ one, many }) => ({
 export const toolCalls = sqliteTable('tool_calls_table', {
 	id: int().primaryKey({ autoIncrement: true }),
 	name: text().notNull(),
-	input: text().notNull(), // JSON string
-	output: text(), // JSON string, nullable since it might not be available immediately
+	input: text().notNull(),
+	output: text(),
 	timestamp: text().notNull(),
 	queryId: int()
 		.references(() => queries.id, { onDelete: 'cascade' })

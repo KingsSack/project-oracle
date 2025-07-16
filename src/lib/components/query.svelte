@@ -6,6 +6,7 @@
 	import ToolCall from '$lib/components/tool-call.svelte';
 	import Topic from './topic.svelte';
 	import nlp from 'compromise';
+	import SearchResult from './search-result.svelte';
 
 	interface ToolCallData {
 		name: string;
@@ -13,8 +14,10 @@
 		output: string | null;
 	}
 
-	interface TopicData {
-		topic: string;
+	interface SiteData {
+		title: string;
+		url: string;
+		description?: string;
 	}
 
 	interface TagData {
@@ -59,6 +62,35 @@
 			.replace(/`([^`]+)`/g, '<code>$1</code>')
 			.replace(/\s+/g, ' ');
 	}
+
+	let sites = $derived.by<SiteData[]>(() => {
+		if (!toolCalls || toolCalls.length === 0) return [];
+
+		const siteMap = new Map<string, SiteData>();
+
+		for (const toolCall of toolCalls) {
+			if (toolCall.name !== 'search' || !toolCall.output) continue;
+
+			try {
+				const output = JSON.parse(toolCall.output);
+				if (output && Array.isArray(output.results)) {
+					output.results.forEach((result: { title: string; url: string; content?: string }) => {
+						if (!siteMap.has(result.url)) {
+							siteMap.set(result.url, {
+								title: result.title,
+								url: result.url,
+								description: result.content || ''
+							});
+						}
+					});
+				}
+			} catch (error) {
+				console.error('Failed to parse tool call output:', error);
+			}
+		}
+
+		return Array.from(siteMap.values());
+	});
 
 	let nouns = $derived.by(() => {
 		if (!response || response === '') return [];
@@ -124,6 +156,20 @@
 									output: ''
 								}
 							];
+							break;
+
+						case 'tool_response':
+							const lastToolCall = toolCalls[toolCalls.length - 1];
+							if (lastToolCall) {
+								toolCalls = toolCalls.map((call, index) => {
+									if (index === toolCalls.length - 1) {
+										return { ...call, output: streamData.content };
+									}
+									return call;
+								});
+							} else {
+								console.warn('Received tool response without a corresponding tool request');
+							}
 							break;
 
 						case 'response':
@@ -195,9 +241,9 @@
 	<div>
 		<TabGroup>
 			<Tab active={activeTab === 'response'} onclick={() => (activeTab = 'response')}>Response</Tab>
-			<!-- {#if sites.length > 0}
-				<Tab active={activeTab === 'tools'} onclick={() => (activeTab = 'sites')}>Sites</Tab>
-			{/if} -->
+			{#if sites.length > 0}
+				<Tab active={activeTab === 'sites'} onclick={() => (activeTab = 'sites')}>Sites</Tab>
+			{/if}
 		</TabGroup>
 	</div>
 
@@ -236,23 +282,16 @@
 			</form>
 		</div>
 	{:else if activeTab === 'sites'}
-		<!-- {#each sites as site}
-			<div class="flex gap-2">
+		{#each sites as site}
+			<div class="flex gap-1">
 				<div
-					class="bg-secondary border-border text-muted-foreground flex aspect-square h-5 w-5 items-center justify-center rounded-full border text-xs"
+					class="bg-secondary border-border text-muted-foreground mt-2 flex aspect-square h-5 w-5 items-center justify-center rounded-full border text-xs"
 				>
 					{sites.indexOf(site) + 1}
 				</div>
-				<a
-					href={site.url}
-					target="_blank"
-					rel="noopener noreferrer"
-					class="text-blue-500 hover:underline"
-				>
-					{site.name}
-				</a>
+				<SearchResult title={site.title} url={site.url} description={site.description} />
 			</div>
-		{/each} -->
+		{/each}
 	{/if}
 
 	<form method="POST" action="?/follow-up" class="m-0 w-full p-0" use:enhance>

@@ -90,14 +90,14 @@ export async function GET({ params: { threadId, queryId } }) {
 								`data: ${JSON.stringify({ type: 'tool_request', content: chunk.toolRequest })}\n\n`
 							);
 						}
+						if (chunk.toolResponse) {
+							controller.enqueue(
+								`data: ${JSON.stringify({ type: 'tool_response', content: chunk.toolResponse })}\n\n`
+							);
+						}
 						if (chunk.response) {
 							controller.enqueue(
 								`data: ${JSON.stringify({ type: 'response', content: chunk.response })}\n\n`
-							);
-						}
-						if (chunk.topics) {
-							controller.enqueue(
-								`data: ${JSON.stringify({ type: 'topics', content: chunk.topics })}\n\n`
 							);
 						}
 						if (chunk.tags) {

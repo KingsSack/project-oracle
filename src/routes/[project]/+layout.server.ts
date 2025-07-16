@@ -22,6 +22,8 @@ export async function load({ params: { project } }) {
             }
             
             selectedProject = selectedProjectData[0].name
+        } else {
+            selectedProject = '';
         }
 
 		return {

@@ -1,19 +1,30 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the
 // README at: https://github.com/marcosgomesneto/bun-devcontainers/tree/main/src/basic-bun
 {
-  "name": "Bun",
-  "dockerFile": "Dockerfile",
-  // Configure tool-specific properties.
-  "customizations": {
-    // Configure properties specific to VS Code.
-    "vscode": {
-      // Add the IDs of extensions you want installed when the container is created.
-      "extensions": [
-        "oven.bun-vscode",
-        "svelte.svelte-vscode",
-        "esbenp.prettier-vscode",
-        "bradlc.vscode-tailwindcss"
-      ]
-    }
-  }
+	"name": "Bun",
+	"dockerFile": "Dockerfile",
+	"forwardPorts": [5173],
+	"portsAttributes": {
+		"5173": {
+			"label": "Application",
+			"onAutoForward": "notify"
+		}
+	},
+	"postCreateCommand": "bun install",
+	"features": {
+		"ghcr.io/devcontainers/features/docker-in-docker": {}
+	},
+	// Configure tool-specific properties.
+	"customizations": {
+		// Configure properties specific to VS Code.
+		"vscode": {
+			// Add the IDs of extensions you want installed when the container is created.
+			"extensions": [
+				"oven.bun-vscode",
+				"svelte.svelte-vscode",
+				"esbenp.prettier-vscode",
+				"bradlc.vscode-tailwindcss"
+			]
+		}
+	}
 }

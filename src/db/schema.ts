@@ -15,7 +15,7 @@ export const models = sqliteTable(
 		provider: text().notNull(),
 		userId: int().references(() => users.id, { onDelete: 'cascade' })
 	},
-	(t) => [check('provider_check', sql`(${t.provider} IN ('googleai', 'openai', 'cohere'))`)]
+	(t) => [check('provider_check', sql`(${t.provider} IN ('googleai', 'openai', 'cohere', 'github'))`)]
 );
 
 export const modelGroups = sqliteTable('model_groups_table', {

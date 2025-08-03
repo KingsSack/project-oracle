@@ -59,6 +59,7 @@
 					<option value="googleai">Google</option>
 					<option value="openai">OpenAI</option>
 					<option value="cohere">Cohere</option>
+					<option value="github">GitHub</option>
 				</select>
 
 				<button type="submit" class="btn btn-primary cursor-pointer">Add Model</button>

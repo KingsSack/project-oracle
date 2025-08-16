@@ -22,8 +22,8 @@ Project Oracle is a self-hosted search application designed to help you find inf
 - **Threads** are collections of related search queries
 - **Tags** help you organize your queries and threads for future reference
 - **Projects** help you organize related threads
-- **Follow Ups** and **Learn More** helps you continue your thread or start a new thread without typing a prompt
-- **Model Groups** let you choose what models are used for
+- **Follow Ups** and **Learn More** help you continue your thread or start a new thread without typing a prompt
+- **Model Groups** allow you to choose what models are used for
 - **Search** allows you to find past queries with natural language
+- **Research** allows you to make more in-depth queries
 - **Connections** (Coming Soon) let you search accross various sources
-- **Research** (Coming Soon) let's you make more in-depth queries

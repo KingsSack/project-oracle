@@ -1,7 +1,8 @@
 import { eq } from 'drizzle-orm';
 import { db } from '../../../../../db/db.server';
 import { threads } from '../../../../../db/schema';
-import { queryGenerationFlow } from '$lib/ai/queryGeneration';
+import { answerFlow } from '$lib/ai/answer';
+import { queryFlow } from '$lib/ai/query';
 
 export async function GET({ params: { threadId, queryId } }) {
 	const thread = await db.query.threads.findFirst({
@@ -71,28 +72,23 @@ export async function GET({ params: { threadId, queryId } }) {
 
 				try {
 					const queryString = query.query.toString();
-					console.log('Processing query:', queryString);
 
-					const result = queryGenerationFlow.stream({
+					const result = answerFlow.stream({
 						responseModel: modelGroup.responseModel,
-						tagsModel: modelGroup.tagsModel,
-						followUpModel: modelGroup.followUpModel,
-						titleModel: modelGroup.followUpModel,
 						query: queryString,
 						queryId: query.id,
-						threadId: thread.id,
 						messages: history.length > 0 ? history : undefined
 					});
 
 					for await (const chunk of result.stream) {
-						if (chunk.toolRequest) {
+						if (chunk.steps) {
 							controller.enqueue(
-								`data: ${JSON.stringify({ type: 'tool_request', content: chunk.toolRequest })}\n\n`
+								`data: ${JSON.stringify({ type: 'steps', content: chunk.steps })}\n\n`
 							);
 						}
-						if (chunk.toolResponse) {
+						if (chunk.sources) {
 							controller.enqueue(
-								`data: ${JSON.stringify({ type: 'tool_response', content: chunk.toolResponse })}\n\n`
+								`data: ${JSON.stringify({ type: 'sources', content: chunk.sources })}\n\n`
 							);
 						}
 						if (chunk.response) {
@@ -100,6 +96,22 @@ export async function GET({ params: { threadId, queryId } }) {
 								`data: ${JSON.stringify({ type: 'response', content: chunk.response })}\n\n`
 							);
 						}
+					}
+
+					const output = await result.output;
+
+					const { output: queryFlowOutput, stream: queryFlowStream } = queryFlow.stream({
+						tagsModel: modelGroup.tagsModel,
+						followUpModel: modelGroup.followUpModel,
+						titleModel: modelGroup.followUpModel,
+						query: queryString,
+						response: output.response,
+						queryId: query.id,
+						threadId: thread.id,
+						messages: history
+					});
+
+					for await (const chunk of queryFlowStream) {
 						if (chunk.tags) {
 							controller.enqueue(
 								`data: ${JSON.stringify({ type: 'tags', content: chunk.tags })}\n\n`
@@ -117,11 +129,11 @@ export async function GET({ params: { threadId, queryId } }) {
 						}
 					}
 
-					const output = await result.output;
+					const queryFlowResult = await queryFlowOutput;
 
-					controller.enqueue(
-						`data: ${JSON.stringify({ type: 'complete', content: output })}\n\n`
-					);
+					const combined = { ...output, ...queryFlowResult };
+
+					controller.enqueue(`data: ${JSON.stringify({ type: 'complete', content: combined })}\n\n`);
 				} catch (error) {
 					const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
 					controller.enqueue(

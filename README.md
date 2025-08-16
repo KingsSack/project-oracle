@@ -13,7 +13,8 @@ Project Oracle is a self-hosted search application designed to help you find inf
 
 ### Build from Source
 
-
+1. Clone this project
+2. Run docker build
 
 ## Features
 
@@ -26,5 +27,3 @@ Project Oracle is a self-hosted search application designed to help you find inf
 - **Search** allows you to find past queries with natural language
 - **Connections** (Coming Soon) let you search accross various sources
 - **Research** (Coming Soon) let's you make more in-depth queries
-
-This project is currently in **alpha development**. Expect frequent changes, potential bugs, and incomplete documentation as we work toward a stable release.

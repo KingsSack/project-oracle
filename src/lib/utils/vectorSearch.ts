@@ -1,16 +1,16 @@
 import { embeddings } from '../../db/schema';
 import { db } from '../../db/db.server';
 import { eq, sql } from 'drizzle-orm';
-import { layer_norm, pipeline } from '@huggingface/transformers';
+import { layer_norm, pipeline, Tensor } from '@huggingface/transformers';
 
-let extractor: any = null;
+export let extractor: any = null;
 
 export interface ThreadSearchResult {
 	threadId: number;
 	similarity: number;
 }
 
-function cosineSimilarity(a: number[], b: number[]): number {
+export function cosineSimilarity(a: number[], b: number[]): number {
 	let dot = 0,
 		normA = 0,
 		normB = 0;
@@ -22,7 +22,7 @@ function cosineSimilarity(a: number[], b: number[]): number {
 	return dot / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
-async function getExtractor() {
+export async function getExtractor() {
 	if (!extractor) {
 		try {
 			extractor = await pipeline('feature-extraction', 'nomic-ai/nomic-embed-text-v1.5');
@@ -34,7 +34,7 @@ async function getExtractor() {
 	return extractor;
 }
 
-export async function generateEmbedding(text: string): Promise<number[]> {
+async function generateEmbedding(text: string): Promise<number[]> {
 	try {
 		extractor = await getExtractor();
 
@@ -106,7 +106,7 @@ export async function threadVectorSearch(query: string): Promise<ThreadSearchRes
 					similarity: cosineSimilarity(flatQueryEmbedding, storedEmbedding)
 				};
 			})
-			.filter(result => result.similarity >= 0.5);
+			.filter((result) => result.similarity >= 0.5);
 
 		return results.sort((a, b) => b.similarity - a.similarity);
 	} catch (error) {

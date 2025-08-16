@@ -1,3 +1,4 @@
+import { query } from '$app/server';
 import { relations, sql } from 'drizzle-orm';
 import { check, int, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
@@ -15,7 +16,12 @@ export const models = sqliteTable(
 		provider: text().notNull(),
 		userId: int().references(() => users.id, { onDelete: 'cascade' })
 	},
-	(t) => [check('provider_check', sql`(${t.provider} IN ('googleai', 'openai', 'cohere', 'github'))`)]
+	(t) => [
+		check(
+			'provider_check',
+			sql`(${t.provider} IN ('openaicompat', 'googleai', 'openai', 'cohere', 'github'))`
+		)
+	]
 );
 
 export const modelGroups = sqliteTable('model_groups_table', {
@@ -75,14 +81,19 @@ export const threadRelations = relations(threads, ({ one, many }) => ({
 	})
 }));
 
-export const queries = sqliteTable('queries_table', {
-	id: int().primaryKey({ autoIncrement: true }),
-	query: text().notNull(),
-	result: text(),
-	timestamp: text().notNull(),
-	userId: int().references(() => users.id, { onDelete: 'cascade' }),
-	threadId: int().references(() => threads.id, { onDelete: 'cascade' })
-});
+export const queries = sqliteTable(
+	'queries_table',
+	{
+		id: int().primaryKey({ autoIncrement: true }),
+		type: text().notNull(),
+		query: text().notNull(),
+		result: text(),
+		timestamp: text().notNull(),
+		userId: int().references(() => users.id, { onDelete: 'cascade' }),
+		threadId: int().references(() => threads.id, { onDelete: 'cascade' })
+	},
+	(t) => [check('type_check', sql`(${t.type} IN ('answer', 'research'))`)]
+);
 
 export const queryRelations = relations(queries, ({ one, many }) => ({
 	thread: one(threads, {
@@ -94,24 +105,41 @@ export const queryRelations = relations(queries, ({ one, many }) => ({
 		references: [users.id]
 	}),
 	tagsToQueries: many(tagsToQueries),
-	toolCalls: many(toolCalls),
+	steps: many(querySteps),
+	sources: many(sources),
 	followUps: many(followUps)
 }));
 
-export const toolCalls = sqliteTable('tool_calls_table', {
+export const querySteps = sqliteTable('query_steps_table', {
 	id: int().primaryKey({ autoIncrement: true }),
-	name: text().notNull(),
-	input: text().notNull(),
-	output: text(),
-	timestamp: text().notNull(),
+	title: text().notNull(),
+	content: text(),
 	queryId: int()
 		.references(() => queries.id, { onDelete: 'cascade' })
 		.notNull()
 });
 
-export const toolCallRelations = relations(toolCalls, ({ one }) => ({
+export const queryStepsRelations = relations(querySteps, ({ one }) => ({
 	query: one(queries, {
-		fields: [toolCalls.queryId],
+		fields: [querySteps.queryId],
+		references: [queries.id]
+	})
+}));
+
+export const sources = sqliteTable('sources_table', {
+	id: int().primaryKey({ autoIncrement: true }),
+	type: text().notNull(),
+	title: text().notNull(),
+	url: text().notNull(),
+	content: text(),
+	queryId: int()
+		.references(() => queries.id, { onDelete: 'cascade' })
+		.notNull()
+});
+
+export const sourcesRelations = relations(sources, ({ one }) => ({
+	query: one(queries, {
+		fields: [sources.queryId],
 		references: [queries.id]
 	})
 }));

@@ -56,6 +56,7 @@
 					class="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-8 w-full rounded-md border px-2 py-1 text-sm leading-5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 					required
 				>
+					<option value="openaicompat">OpenAI Compatible</option>
 					<option value="googleai">Google</option>
 					<option value="openai">OpenAI</option>
 					<option value="cohere">Cohere</option>

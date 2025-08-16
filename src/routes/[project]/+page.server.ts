@@ -10,6 +10,7 @@ export const actions = {
 
 		const project = data.get('project') || 'Default';
 		const source = data.get('source');
+		const responseType = data.get('responseType') || 'answer';
 		const modelGroup = data.get('modelGroup');
 		const userQuery = data.get('query');
 
@@ -53,6 +54,7 @@ export const actions = {
 			const queryData = await db
 				.insert(queries)
 				.values({
+					type: responseType.toString(),
 					query: userQuery.toString(),
 					timestamp: new Date().toISOString(),
 					threadId: id

@@ -2,8 +2,8 @@
 	"name": "project-oracle",
 	"version": "0.0.1",
 	"devDependencies": {
-		"@sveltejs/adapter-auto": "^6.0.1",
-		"@sveltejs/kit": "^2.25.0",
+		"@sveltejs/adapter-auto": "^6.0.2",
+		"@sveltejs/kit": "^2.27.3",
 		"@sveltejs/vite-plugin-svelte": "^5.1.1",
 		"@tailwindcss/vite": "^4.1.11",
 		"@types/katex": "^0.16.7",
@@ -11,11 +11,11 @@
 		"prettier": "^3.6.2",
 		"prettier-plugin-svelte": "^3.4.0",
 		"prettier-plugin-tailwindcss": "^0.6.14",
-		"svelte": "^5.36.7",
-		"svelte-check": "^4.3.0",
+		"svelte": "^5.38.0",
+		"svelte-check": "^4.3.1",
 		"tailwindcss": "^4.1.11",
 		"tsx": "^4.20.3",
-		"typescript": "^5.8.3",
+		"typescript": "^5.9.2",
 		"vite": "^6.3.5"
 	},
 	"private": true,
@@ -31,19 +31,21 @@
 	},
 	"type": "module",
 	"dependencies": {
-		"@genkit-ai/compat-oai": "^1.15.0",
-		"@genkit-ai/googleai": "^1.14.1",
-		"@huggingface/transformers": "^3.6.3",
+		"@genkit-ai/compat-oai": "^1.16.0",
+		"@genkit-ai/googleai": "^1.16.0",
+		"@huggingface/transformers": "^3.7.1",
 		"@libsql/client": "^0.15.10",
 		"compromise": "^14.14.4",
 		"dotenv": "^16.6.1",
 		"drizzle-orm": "^0.43.1",
-		"genkit": "^1.14.1",
+		"genkit": "^1.16.0",
 		"genkitx-cohere": "^0.22.0",
 		"genkitx-github": "^1.14.0",
 		"katex": "^0.16.22",
+		"llm-chunk": "^0.0.1",
 		"marked": "^15.0.12",
 		"mdsvex": "^0.12.6",
-		"shiki": "^3.8.1"
+		"redis": "^5.8.0",
+		"shiki": "^3.9.2"
 	}
 }

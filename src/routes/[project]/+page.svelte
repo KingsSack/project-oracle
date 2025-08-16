@@ -27,6 +27,8 @@
 			formElement.requestSubmit();
 		}
 	}
+
+	let selectedResponseType = $state('answer');
 </script>
 
 <h1 class="mb-2 text-center text-6xl font-bold">Project Oracle</h1>
@@ -48,11 +50,12 @@
 		></textarea>
 		<input type="hidden" name="project" value={data.currentProject} />
 		<input type="hidden" name="source" value={currentSource} />
+		<input type="hidden" name="responseType" value={selectedResponseType} />
 		<input type="hidden" name="modelGroup" value={currentModelGroup} />
 		<div class="flex items-center justify-between gap-2">
 			<TabGroup>
-				<Tab active={true}>Answer</Tab>
-				<Tab>Research</Tab>
+				<Tab active={selectedResponseType === 'answer'} onclick={() => selectedResponseType = 'answer'}>Answer</Tab>
+				<Tab active={selectedResponseType === 'research'} onclick={() => selectedResponseType = 'research'}>Research</Tab>
 			</TabGroup>
 			<div class="flex items-center gap-3">
 				<Selector

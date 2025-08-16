@@ -3,15 +3,15 @@
 	import TabGroup from '$lib/components/tab-group.svelte';
 	import Tab from '$lib/components/tab.svelte';
 	import Tag from '$lib/components/tag.svelte';
-	import ToolCall from '$lib/components/tool-call.svelte';
 	import Topic from './topic.svelte';
 	import nlp from 'compromise';
 	import SearchResult from './search-result.svelte';
+	import Step from './step.svelte';
+	import FollowUp from './follow-up.svelte';
 
-	interface ToolCallData {
-		name: string;
-		input: string;
-		output: string | null;
+	interface StepData {
+		step: string;
+		content?: string[];
 	}
 
 	interface SiteData {
@@ -35,12 +35,20 @@
 
 	let { data, project } = $props();
 
-	let toolCalls = $derived<ToolCallData[]>(
-		data.toolCalls.map((toolCall: { name: string; input: any; output: any }) => ({
-			name: toolCall.name,
-			input: toolCall.input,
-			output: toolCall.output
+	let steps = $derived<StepData[]>(
+		data.steps.map((step: { title: string; content: string }) => ({
+			step: step.title,
+			content: JSON.parse(step.content)
 		})) || []
+	);
+	let sites = $derived<SiteData[]>(
+		(data.sources || [])
+			.filter((source: { type: string }) => source.type === 'web')
+			.map((source: { type: string; title: string; url: string; content?: string }) => ({
+				title: source.title,
+				url: source.url,
+				description: source.content || ''
+			})) || []
 	);
 	let response = $derived(data.result || '');
 	let tags = $derived<TagData[]>(
@@ -62,35 +70,6 @@
 			.replace(/`([^`]+)`/g, '<code>$1</code>')
 			.replace(/\s+/g, ' ');
 	}
-
-	let sites = $derived.by<SiteData[]>(() => {
-		if (!toolCalls || toolCalls.length === 0) return [];
-
-		const siteMap = new Map<string, SiteData>();
-
-		for (const toolCall of toolCalls) {
-			if (toolCall.name !== 'search' || !toolCall.output) continue;
-
-			try {
-				const output = JSON.parse(toolCall.output);
-				if (output && Array.isArray(output.results)) {
-					output.results.forEach((result: { title: string; url: string; content?: string }) => {
-						if (!siteMap.has(result.url)) {
-							siteMap.set(result.url, {
-								title: result.title,
-								url: result.url,
-								description: result.content || ''
-							});
-						}
-					});
-				}
-			} catch (error) {
-				console.error('Failed to parse tool call output:', error);
-			}
-		}
-
-		return Array.from(siteMap.values());
-	});
 
 	let nouns = $derived.by(() => {
 		if (!response || response === '') return [];
@@ -139,37 +118,92 @@
 	$effect(() => {
 		const cleanupFunctions: (() => void)[] = [];
 
-		if (data.result === null) {
-			const eventSource = new EventSource(`/api/response/${data.threadId}/${data.id}`);
+		if (data.result === null && data.type === 'answer') {
+			const eventSource = new EventSource(`/api/answer/${data.threadId}/${data.id}`);
 
 			const handleMessage = (event: MessageEvent) => {
 				try {
 					const streamData = JSON.parse(event.data);
 
 					switch (streamData.type) {
-						case 'tool_request':
-							toolCalls = [
-								...toolCalls,
-								{
-									name: streamData.content.name,
-									input: JSON.stringify(streamData.content.input),
-									output: ''
-								}
-							];
+						case 'steps':
+							steps = streamData.content;
 							break;
 
-						case 'tool_response':
-							const lastToolCall = toolCalls[toolCalls.length - 1];
-							if (lastToolCall) {
-								toolCalls = toolCalls.map((call, index) => {
-									if (index === toolCalls.length - 1) {
-										return { ...call, output: streamData.content };
-									}
-									return call;
-								});
-							} else {
-								console.warn('Received tool response without a corresponding tool request');
-							}
+						case 'sources':
+							sites = streamData.content;
+							break;
+
+						case 'response':
+							response = (response || '') + streamData.content;
+							break;
+
+						case 'tags':
+							tags = streamData.content;
+							break;
+
+						case 'follow_ups':
+							followUps = streamData.content;
+							console.log(followUps);
+							break;
+						
+						case 'title':
+							break;
+
+						case 'complete':
+							steps = streamData.content.steps || [];
+							sites = streamData.content.sources || [];
+							response = streamData.content.response || '';
+							tags = streamData.content.tags || [];
+							followUps = streamData.content.followUps || [];
+							eventSource.close();
+							break;
+
+						case 'error':
+							console.error('Streaming error:', streamData.content);
+							eventSource.close();
+							break;
+
+						default:
+							console.warn('Unknown stream data type:', streamData.type);
+					}
+				} catch (parseError) {
+					console.error('Failed to parse JSON from event:', event.data, parseError);
+					if (event.data.includes('error')) {
+						console.error('Streaming error: Failed to parse JSON');
+						eventSource.close();
+					}
+				}
+			};
+
+			const handleError = () => {
+				console.error('EventSource connection error');
+				eventSource.close();
+			};
+
+			eventSource.addEventListener('message', handleMessage);
+			eventSource.addEventListener('error', handleError);
+
+			cleanupFunctions.push(() => {
+				eventSource.removeEventListener('message', handleMessage);
+				eventSource.removeEventListener('error', handleError);
+				eventSource.close();
+			});
+		} else if (data.result === null && data.type === 'research') {
+			const eventSource = new EventSource(`/api/research/${data.threadId}/${data.id}`);
+
+			const handleMessage = (event: MessageEvent) => {
+				try {
+					const streamData = JSON.parse(event.data);
+
+					switch (streamData.type) {
+						case 'steps':
+							steps = streamData.content;
+							break;
+
+						case 'sources':
+							sites = streamData.content;
+							console.log('Received sources:', streamData.content);
 							break;
 
 						case 'response':
@@ -183,11 +217,14 @@
 						case 'follow_ups':
 							followUps = streamData.content;
 							break;
+						
+						case 'title':
+							break;
 
 						case 'complete':
+							steps = streamData.content.steps || [];
+							sites = streamData.content.sources || [];
 							response = streamData.content.response || '';
-							tags = streamData.content.tags || [];
-							followUps = streamData.content.followUps || [];
 							eventSource.close();
 							break;
 
@@ -248,22 +285,15 @@
 	</div>
 
 	{#if activeTab === 'response'}
-		{#each toolCalls as toolCall}
-			<div class="flex items-center gap-2">
-				<div
-					class="border-border text-muted-foreground flex aspect-square h-5 w-5 items-center justify-center rounded-full border text-xs font-extralight"
-				>
-					{toolCalls.indexOf(toolCall) + 1}
-				</div>
-				<ToolCall name={toolCall.name} input={toolCall.input} />
-			</div>
+		{#each steps as step}
+			<Step index={steps.indexOf(step) + 1} step={step.step} content={step.content} />
 		{/each}
 		<div class="flex gap-2">
 			<div class="flex h-6 w-5 items-center justify-center">
 				<div
 					class="border-border text-muted-foreground flex aspect-square h-5 w-5 items-center justify-center rounded-full border text-xs font-extralight"
 				>
-					{toolCalls.length + 1}
+					{steps.length + 1}
 				</div>
 			</div>
 			<form method="POST" action="?/follow-up" class="m-0 p-0" use:enhance>
@@ -294,24 +324,18 @@
 		{/each}
 	{/if}
 
-	<form method="POST" action="?/follow-up" class="m-0 w-full p-0" use:enhance>
-		<input type="hidden" name="project" value={project} />
-		<input type="hidden" name="threadId" value={data.threadId} />
-		<input type="hidden" name="queryId" value={data.id} />
-		<div class="flex flex-wrap gap-2">
-			{#each followUps as followUp}
-				<button
-					name="query"
-					value={followUp.query}
-					type="submit"
-					class="border-border text-muted-foreground cursor-pointer rounded-xl border px-3 py-1 text-sm font-medium"
-					aria-label="Follow up query: {followUp.query}"
-				>
-					{followUp.query}
-				</button>
-			{/each}
-		</div>
-	</form>
+	{#if data.result !== null}
+		<form method="POST" action="?/follow-up" class="m-0 w-full p-0" use:enhance>
+			<input type="hidden" name="project" value={project} />
+			<input type="hidden" name="threadId" value={data.threadId} />
+			<input type="hidden" name="queryId" value={data.id} />
+			<div class="flex flex-wrap gap-2">
+				{#each followUps as followUp}
+					<FollowUp query={followUp.query} />
+				{/each}
+			</div>
+		</form>
+	{/if}
 </div>
 
 <style>

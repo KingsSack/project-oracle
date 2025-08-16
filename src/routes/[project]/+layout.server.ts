@@ -34,6 +34,6 @@ export async function load({ params: { project } }) {
 			selectedProject: selectedProject
 		};
 	} catch (error) {
-		return fail(500);
+		throw fail(500);
 	}
 }

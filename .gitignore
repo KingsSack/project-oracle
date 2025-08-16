@@ -28,3 +28,6 @@ vite.config.ts.timestamp-*
 *.db
 **/migrations/
 **/meta/
+
+# Genkit
+.genkit

@@ -68,6 +68,7 @@ export const actions = {
 			const queryData = await db
 				.insert(queries)
 				.values({
+					type: 'answer',
 					query: userQuery.toString(),
 					timestamp: new Date().toISOString(),
 					threadId: parseInt(threadId.toString())
@@ -100,6 +101,7 @@ export async function load({ params: { id }, parent }) {
 			where: eq(queries.id, parseInt(id)),
 			columns: {
 				id: true,
+				type: true,
 				query: true,
 				result: true,
 				threadId: true
@@ -118,11 +120,14 @@ export async function load({ params: { id }, parent }) {
 						}
 					}
 				},
-				toolCalls: {
+				steps: {
 					columns: {
-						name: true,
-						input: true,
-						output: true
+						queryId: false
+					}
+				},
+				sources: {
+					columns: {
+						queryId: false
 					}
 				},
 				followUps: {

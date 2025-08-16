@@ -1,10 +1,10 @@
 import { z } from 'genkit';
-import { ai } from '../../ai/ai.server';
+import { ai } from '../../../ai/ai.server';
 
 export const search = ai.defineTool(
 	{
 		name: 'search',
-		description: 'Search for information on the web',
+		description: 'Search for information from the web',
 		inputSchema: z.object({
 			query: z.string().describe('The search query to perform')
 		}),

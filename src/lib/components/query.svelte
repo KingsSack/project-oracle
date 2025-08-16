@@ -266,7 +266,7 @@
 	});
 </script>
 
-<div class="flex w-full flex-col gap-4">
+<div class="flex w-full flex-col gap-4 mb-16">
 	<h1 class="mb-2 text-start text-2xl font-medium">{data.query}</h1>
 
 	<div class="flex flex-wrap gap-x-4 gap-y-1">

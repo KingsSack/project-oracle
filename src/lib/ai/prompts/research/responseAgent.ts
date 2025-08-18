@@ -33,7 +33,7 @@ Return exactly this JSON structure:
 
 Return ONLY valid JSON without any additional text.
 ONLY use double quotes for JSON keys and string values.
-Double quotes in the output MUST be preceded by three backslashes (\\\).`,
+Double quotes in the output MUST be preceded by three backslashes.`,
 	input: {
 		schema: ResponseAgentInputSchema
 	},

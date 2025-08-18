@@ -23,7 +23,8 @@
 				"oven.bun-vscode",
 				"svelte.svelte-vscode",
 				"esbenp.prettier-vscode",
-				"bradlc.vscode-tailwindcss"
+				"bradlc.vscode-tailwindcss",
+				"Redis.redis-for-vscode"
 			]
 		}
 	}

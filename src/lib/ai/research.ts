@@ -1,15 +1,26 @@
 import { ai } from '../../ai/ai.server';
 import { z } from 'genkit';
 import { Document } from 'genkit/retriever';
-import { redisIndexer, redisRetriever, resetCache } from '$lib/redis';
+import { redisIndexer, redisRankedRetriever, redisRetriever, resetCache } from '$lib/redis';
 import { db } from '../../db/db.server';
 import { queries, querySteps, sources } from '../../db/schema';
 import { eq } from 'drizzle-orm';
 import { runPromptStream } from '$lib/utils/streaming';
-import { OrchestratorChunkSchema, OrchestratorInputSchema, OrchestratorOutputSchema } from './prompts/research/orchestrator';
-import { GenerateResearchPlanInputSchema, GenerateResearchPlanOutputSchema, GenerateResearchPlanChunkSchema } from './prompts/research/generateResearchPlan';
-import { ResearchAgentInputSchema, ResearchAgentOutputSchema, ResearchAgentChunkSchema } from './prompts/research/researchAgent';
-import { ResponseAgentChunkSchema, ResponseAgentInputSchema, ResponseAgentOutputSchema } from './prompts/research/responseAgent';
+import {
+	ResearchOrchestratorChunkSchema,
+	ResearchOrchestratorInputSchema,
+	ResearchOrchestratorOutputSchema
+} from './prompts/research/orchestrator';
+import {
+	ResearchAgentInputSchema,
+	ResearchAgentOutputSchema,
+	ResearchAgentChunkSchema
+} from './prompts/research/researchAgent';
+import {
+	ResponseAgentChunkSchema,
+	ResponseAgentInputSchema,
+	ResponseAgentOutputSchema
+} from './prompts/research/responseAgent';
 
 const ResearchInputSchema = z.object({
 	responseModel: z.object({
@@ -97,61 +108,61 @@ export const researchFlow = ai.defineFlow(
 	async ({ responseModel, query, queryId, messages }, { sendChunk }) => {
 		let steps: Step[] = [];
 
-		await resetCache();
-
-		steps.push({ step: 'Starting Research', content: [] });
-
 		const orchestratorOutput = await runPromptStream<
-			z.infer<typeof OrchestratorInputSchema>,
-			z.infer<typeof OrchestratorChunkSchema>,
-			z.infer<typeof OrchestratorOutputSchema>
+			z.infer<typeof ResearchOrchestratorInputSchema>,
+			z.infer<typeof ResearchOrchestratorChunkSchema>,
+			z.infer<typeof ResearchOrchestratorOutputSchema>
 		>(
-			'orchestrator',
+			'researchOrchestrator',
 			{ query },
 			{
 				model: responseModel.provider + '/' + responseModel.model,
 				messages: messages || []
-			},
-			(chunk) => {
-				if (chunk.plan) {
-					steps[0].content[0] = chunk.plan;
-					sendChunk({ steps });
-				}
 			}
 		);
 
-		steps[0].content[0] = orchestratorOutput.plan;
+		steps.push({
+			step: 'Starting Research',
+			content: [`Using ${orchestratorOutput.length} research agents.`]
+		});
+		sendChunk({ steps });
 
-		const researchPrompts = orchestratorOutput.prompts || [];
+		try {
+			await db.insert(querySteps).values({
+				title: steps[0].step,
+				content: JSON.stringify(steps[0].content),
+				queryId
+			});
+		} catch (dbError) {
+			console.error('Database error inserting step:', steps[0].step, dbError);
+		}
 
-		steps.push({ step: 'Planning Research', content: [] });
-		steps.push({ step: 'Found Sources', content: [] });
+		steps.push({ step: 'Finding Sources', content: [] });
 
 		const documents: Document[] = [];
 
 		let i = 0;
-		for (const prompt of researchPrompts) {
-			const researchPlanOutput = await runPromptStream<
-				z.infer<typeof GenerateResearchPlanInputSchema>,
-				z.infer<typeof GenerateResearchPlanChunkSchema>,
-				z.infer<typeof GenerateResearchPlanOutputSchema>
+		for (const agent of orchestratorOutput) {
+			const researchAgentOutput = await runPromptStream<
+				z.infer<typeof ResearchAgentInputSchema>,
+				z.infer<typeof ResearchAgentChunkSchema>,
+				z.infer<typeof ResearchAgentOutputSchema>
 			>(
-				'generateResearchPlan',
-				{ prompt: prompt },
+				'researchAgent',
+				{ prompt: agent.prompt, plan: agent.plan },
 				{
-					model: responseModel.provider + '/' + responseModel.model
+					model: responseModel.provider + '/' + responseModel.model,
+					maxTurns: 10
 				},
 				(chunk) => {
-					if (chunk.plan) {
-						steps[1].content[i] = chunk.plan;
+					if (chunk.result) {
+						steps[1].content[i] = chunk.result;
 						sendChunk({ steps });
 					}
 				}
 			);
 
-			const researchPlan = researchPlanOutput.plan;
-
-			steps[1].content[i] = researchPlan;
+			steps[1].content[i] = researchAgentOutput.result;
 
 			try {
 				await db.insert(querySteps).values({
@@ -163,44 +174,16 @@ export const researchFlow = ai.defineFlow(
 				console.error('Database error inserting step:', steps[1].step, dbError);
 			}
 
-			const researchAgentOutput = await runPromptStream<
-				z.infer<typeof ResearchAgentInputSchema>,
-				z.infer<typeof ResearchAgentChunkSchema>,
-				z.infer<typeof ResearchAgentOutputSchema>
-			>(
-				'researchAgent',
-				{ prompt: prompt, plan: researchPlan },
-				{
-					model: responseModel.provider + '/' + responseModel.model
-				},
-				(chunk) => {
-					if (chunk.result) {
-						steps[2].content[i] = chunk.result;
-						sendChunk({ steps });
-					}
-				}
-			);
-			
-			steps[2].content[i] = researchAgentOutput.result;
-
-			try {
-				await db.insert(querySteps).values({
-					title: steps[2].step,
-					content: JSON.stringify(steps[2].content),
-					queryId
-				});
-			} catch (dbError) {
-				console.error('Database error inserting step:', steps[2].step, dbError);
-			}
-
 			for (const source of researchAgentOutput.sources) {
 				const { name, url, content } = source;
-				const id = documents.length;
+				const localIndex = documents.length;
 				try {
+					const uniqueId = `${queryId}-${localIndex}`;
 					const metadata = {
-						id,
+						id: uniqueId,
 						title: name,
-						url
+						url,
+						flow: String(queryId)
 					};
 					const document = Document.fromText(content, metadata);
 
@@ -220,13 +203,22 @@ export const researchFlow = ai.defineFlow(
 
 		steps.push({ step: 'Writing Response', content: [] });
 
-		// const docs = await ai.retrieve({
-		// 	retriever: redisRetriever,
-		// 	query,
-		// 	options: { k: 3 }
-		// });
-
-		const docs = documents;
+		let docs;
+		try {
+			docs = await ai.retrieve({
+				retriever: redisRankedRetriever,
+				query: { content: [{ text: query }], metadata: { flow: String(queryId) } } as any,
+				options: {
+					preRerankK: 1000,
+					k: 200,
+					extendPromptModel: responseModel,
+					rerankerModel: responseModel
+				}
+			});
+		} catch (err) {
+			console.error('Error retrieving docs from redis retriever; using in-memory documents:', err);
+			docs = documents;
+		}
 
 		let sites: Source[] = [];
 		for (const doc of docs) {
@@ -265,7 +257,7 @@ export const researchFlow = ai.defineFlow(
 			},
 			(chunk) => {
 				if (chunk.plan) {
-					steps[3].content[0] = chunk.plan;
+					steps[2].content[0] = chunk.plan;
 					sendChunk({ steps });
 				}
 				if (chunk.response) {
@@ -276,16 +268,16 @@ export const researchFlow = ai.defineFlow(
 			}
 		);
 
-		steps[3].content[0] = responseAgentOutput.plan;
+		steps[2].content[0] = responseAgentOutput.plan;
 
 		try {
 			await db.insert(querySteps).values({
-				title: steps[3].step,
-				content: JSON.stringify(steps[3].content),
+				title: steps[2].step,
+				content: JSON.stringify(steps[2].content),
 				queryId
 			});
 		} catch (dbError) {
-			console.error('Database error inserting step:', steps[3].step, dbError);
+			console.error('Database error inserting step:', steps[2].step, dbError);
 		}
 
 		try {

@@ -2,6 +2,9 @@ import { createClient, SCHEMA_FIELD_TYPE, SCHEMA_VECTOR_FIELD_ALGORITHM } from '
 import { ai } from '../ai/ai.server';
 import { z } from 'genkit';
 import { getExtractor } from './utils/vectorSearch';
+import { CommonRetrieverOptionsSchema } from 'genkit/retriever';
+import { runPromptStream } from './utils/streaming';
+import { ExtendPromptInputSchema, ExtendPromptOutputSchema } from './ai/prompts/extendPrompt';
 
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 
@@ -35,6 +38,9 @@ export async function resetCache() {
 			},
 			metadata: {
 				type: SCHEMA_FIELD_TYPE.TEXT
+			},
+			flow: {
+				type: SCHEMA_FIELD_TYPE.TAG
 			}
 		},
 		{
@@ -43,6 +49,8 @@ export async function resetCache() {
 		}
 	);
 }
+
+resetCache()
 
 export const redisIndexer = ai.defineIndexer(
 	{
@@ -58,12 +66,17 @@ export const redisIndexer = ai.defineIndexer(
 			const pipe = await getExtractor();
 
 			try {
-				await redis.hSet(`doc:${doc.metadata.id}`, {
+				const flow = doc.metadata?.flow ?? 'global';
+				const id = doc.metadata?.id ?? `${flow}:${Math.random().toString(36).slice(2, 9)}`;
+				const key = `doc:flow:${flow}:${id}`;
+
+				await redis.hSet(key, {
 					content: doc.text,
 					embedding: Buffer.from(
 						(await pipe(doc.text, { pooling: 'mean', normalize: true })).data.buffer
 					),
-					metadata: JSON.stringify(doc.metadata)
+					metadata: JSON.stringify(doc.metadata),
+					flow: String(flow)
 				});
 			} catch (error) {
 				console.error('Error storing document in Redis:', error);
@@ -105,19 +118,21 @@ export const redisRetriever = ai.defineSimpleRetriever(
 
 		const pipe = await getExtractor();
 
-		const similar = (await redis.ft.search(
-			'vector_idx',
-			`*=>[KNN ${config.k} @embedding $B AS score]`,
-			{
-				PARAMS: {
-					B: Buffer.from(
-						(await pipe(query.text, { pooling: 'mean', normalize: true })).data.buffer
-					)
-				},
-				RETURN: ['score', 'content', 'metadata'],
-				DIALECT: 2
-			}
-		)) as RedisSearchResult | null;
+		const flow = (query as any)?.metadata?.flow;
+
+		const filter = flow ? `(@flow:{${String(flow)}})` : '*';
+
+		const q = `${filter}=>[KNN ${config.k} @embedding $B AS score]`;
+
+		const similar = (await redis.ft.search('vector_idx', q, {
+			PARAMS: {
+				B: Buffer.from((await pipe(query.text, { pooling: 'mean', normalize: true })).data.buffer)
+			},
+			RETURN: ['score', 'content', 'metadata', 'flow'],
+			SORTBY: 'score',
+			LIMIT: { from: 0, size: config.k },
+			DIALECT: 2
+		})) as RedisSearchResult | null;
 
 		if (!similar || !similar.documents || similar.total === 0) {
 			console.warn('No similar documents found in Redis for query:', query.text);
@@ -126,11 +141,13 @@ export const redisRetriever = ai.defineSimpleRetriever(
 
 		for (const doc of similar.documents) {
 			const metadata = doc.value?.metadata ? JSON.parse(doc.value.metadata) : {};
+			const distance = Number(doc.value?.score) || Number.POSITIVE_INFINITY;
+			const similarity = 1 / (1 + distance);
 			docs.push({
 				text: doc.value.content,
 				title: metadata.title,
 				url: metadata.url,
-				similarity: Number(doc.value.score)
+				similarity
 			});
 		}
 
@@ -139,24 +156,50 @@ export const redisRetriever = ai.defineSimpleRetriever(
 	}
 );
 
-// const redisRerankedRetrieverOptions = CommonRetrieverOptionsSchema.extend({
-// 	preRerankK: z.number().max(1000)
-// });
+const redisRerankedRetrieverOptions = CommonRetrieverOptionsSchema.extend({
+	preRerankK: z.number().max(1000),
+	extendPromptModel: z.object({
+		model: z.string(),
+		provider: z.string()
+	}),
+	rerankerModel: z.object({
+		model: z.string(),
+		provider: z.string()
+	})
+});
 
-// export const redisRankedRetriever = ai.defineRetriever(
-// 	{
-// 		name: 'redisRankedRetriever',
-// 		configSchema: redisRerankedRetrieverOptions
-// 	},
-// 	async (input, options) => {
-// 		const extendedPrompt = await extendPrompt(input);
-// 		const docs = await ai.retrieve({
-// 			retriever: redisRetriever,
-// 			query: extendedPrompt,
-// 			options: { k: options.preRerankK || 10 }
-// 		});
+export const redisRankedRetriever = ai.defineRetriever(
+	{
+		name: 'redisRankedRetriever',
+		configSchema: redisRerankedRetrieverOptions
+	},
+	async (input, options) => {
+		if (!input.content?.[0]?.text) {
+			return { documents: [] };
+		}
 
-// 		const rerankedDocs = await rerank(docs);
-// 		return rerankedDocs.slice(0, options.k || 3);
-// 	}
-// );
+		const extendedPrompt = (
+			await runPromptStream<
+				z.infer<typeof ExtendPromptInputSchema>,
+				typeof String,
+				z.infer<typeof ExtendPromptOutputSchema>
+			>(
+				'extendPrompt',
+				{ query: input.content[0].text },
+				{ model: options.extendPromptModel.provider + '/' + options.extendPromptModel.model }
+			)
+		).extendedQuery;
+		const documents = await ai.retrieve({
+			retriever: redisRetriever,
+			query: { content: [{ text: extendedPrompt }], metadata: input.metadata },
+			options: { k: options.preRerankK || 10 }
+		});
+
+		// const rerankedDocs = await ai.rerank({
+		// 	reranker: options.rerankerModel.provider + '/' + options.rerankerModel.model,
+		// 	query: extendedPrompt,
+		// 	documents
+		// });
+		return { documents: documents.slice(0, options.k || 3) };
+	}
+);

@@ -146,7 +146,7 @@
 							followUps = streamData.content;
 							console.log(followUps);
 							break;
-						
+
 						case 'title':
 							break;
 
@@ -217,7 +217,7 @@
 						case 'follow_ups':
 							followUps = streamData.content;
 							break;
-						
+
 						case 'title':
 							break;
 
@@ -266,7 +266,7 @@
 	});
 </script>
 
-<div class="flex w-full flex-col gap-4 mb-16">
+<div class="mb-16 flex w-full flex-col gap-4">
 	<h1 class="mb-2 text-start text-2xl font-medium">{data.query}</h1>
 
 	<div class="flex flex-wrap gap-x-4 gap-y-1">
@@ -286,7 +286,13 @@
 
 	{#if activeTab === 'response'}
 		{#each steps as step}
-			<Step index={steps.indexOf(step) + 1} step={step.step} content={step.content} />
+			<Step
+				index={steps.indexOf(step) + 1}
+				step={step.step}
+				content={step.content}
+				isLast={steps.indexOf(step) === steps.length - 1}
+				hasResponse={!!response}
+			/>
 		{/each}
 		<div class="flex gap-2">
 			<div class="flex h-6 w-5 items-center justify-center">

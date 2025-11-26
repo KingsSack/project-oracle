@@ -2,9 +2,62 @@ import { eq } from 'drizzle-orm';
 import { fail, redirect } from '@sveltejs/kit';
 import { modelGroups, projects, queries, threads } from '../../db/schema';
 import { db } from '../../db/db.server';
+import { users } from '../../db/schema.js';
 import { resolveModelGroupId } from '$lib/utils/modelGroups';
 
 export const actions = {
+	createProject: async ({ request }) => {
+        const formData = await request.formData();
+        const projectName = (formData.get('name')?.toString() ?? '').trim();
+
+        if (!projectName) {
+            return fail(400, { message: 'Project name is required.' });
+        }
+
+        try {
+            const existingProject = await db
+                .select({ id: projects.id })
+                .from(projects)
+                .where(eq(projects.name, projectName))
+                .limit(1);
+
+            if (existingProject.length > 0) {
+                return fail(409, { message: 'A project with that name already exists.' });
+            }
+
+            const usersResult = await db.query.users.findMany({
+                columns: { id: true },
+                limit: 1
+            });
+
+            let userId = usersResult[0]?.id;
+
+            if (!userId) {
+                await db.insert(users).values({
+                    name: 'Default user',
+                    email: 'default@project-oracle.local'
+                });
+
+                const createdUser = await db.query.users.findMany({
+                    columns: { id: true },
+                    limit: 1
+                });
+
+                userId = createdUser[0]?.id;
+            }
+
+            if (!userId) {
+                return fail(500, { message: 'Unable to assign a user to the project.' });
+            }
+
+            await db.insert(projects).values({ name: projectName, userId });
+
+            return { success: true };
+        } catch (error) {
+            console.error('Unable to create project', error);
+            return fail(500, { message: 'Unable to create project.' });
+        }
+    },
 	query: async ({ request }) => {
 		const data = await request.formData();
 

@@ -1,4 +1,3 @@
-import { query } from '$app/server';
 import { relations, sql } from 'drizzle-orm';
 import { check, int, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 

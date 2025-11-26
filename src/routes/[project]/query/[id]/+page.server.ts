@@ -1,7 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import { db } from '../../../../db/db.server';
-import { followUps, projects, queries, threads } from '../../../../db/schema';
+import { followUps, queries, threads } from '../../../../db/schema';
 
 export const actions = {
 	'follow-up': async ({ request }) => {

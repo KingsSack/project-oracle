@@ -8,10 +8,10 @@ export async function load({ parent, url }) {
 	try {
 		const parentData = await parent();
 
-		const currentProject = parentData.selectedProject || 'Default';
+		const currentProject = parentData.selectedProject || 'default';
 
 		let projectsId: number | undefined;
-		if (currentProject !== 'Default') {
+		if (currentProject !== 'default') {
 			const projectResult = await db
 				.select({ id: projects.id })
 				.from(projects)

@@ -1,26 +1,25 @@
 import { and, eq, inArray } from 'drizzle-orm';
-import { db } from '../../../db/db.server';
-import { projects, queries, tags, tagsToQueries, threads } from '../../../db/schema';
-import { enhancedSearch } from '../../../lib/services/searchService';
+import { db } from '$db/db.server';
+import { projects, queries, tags, tagsToQueries, threads } from '$db/schema';
+import { enhancedSearch } from '$services/searchService';
 import { fail } from '@sveltejs/kit';
+import type { PageServerLoad } from './$types';
 
-export async function load({ parent, url }) {
+export const load: PageServerLoad = async ({ parent, url }) => {
 	try {
-		const parentData = await parent();
-
-		const currentProject = parentData.selectedProject || 'default';
+		const { selectedProject } = await parent();
 
 		let projectsId: number | undefined;
-		if (currentProject !== 'default') {
+		if (selectedProject !== 'default') {
 			const projectResult = await db
 				.select({ id: projects.id })
 				.from(projects)
-				.where(eq(projects.name, currentProject.toString()))
+				.where(eq(projects.name, selectedProject))
 				.limit(1);
 
 			if (projectResult.length === 0) {
 				return fail(404, {
-					error: `Project "${currentProject}" not found`
+					error: `Project "${selectedProject}" not found`
 				});
 			}
 			projectsId = projectResult[0].id;
@@ -94,7 +93,7 @@ export async function load({ parent, url }) {
 		}
 
 		return {
-			currentProject: currentProject,
+			currentProject: selectedProject,
 			tags: tagsData.map((tag) => tag.name),
 			threads: searchResults.threads,
 			search: searchParam || '',
@@ -105,4 +104,4 @@ export async function load({ parent, url }) {
 		console.error('Error loading threads:', error);
 		throw error;
 	}
-}
+};

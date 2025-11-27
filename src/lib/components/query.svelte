@@ -1,37 +1,14 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import TabGroup from '$lib/components/tab-group.svelte';
-	import Tab from '$lib/components/tab.svelte';
-	import Tag from '$lib/components/tag.svelte';
-	import Topic from './topic.svelte';
+	import TabGroup from '$components/tab-group.svelte';
+	import Tab from '$components/tab.svelte';
+	import Tag from '$components/tag.svelte';
+	import Topic from '$components/topic.svelte';
+	import SearchResult from '$components/search-result.svelte';
+	import Step from '$components/step.svelte';
+	import FollowUp from '$components/follow-up.svelte';
 	import nlp from 'compromise';
-	import SearchResult from './search-result.svelte';
-	import Step from './step.svelte';
-	import FollowUp from './follow-up.svelte';
-
-	interface StepData {
-		step: string;
-		content?: string[];
-	}
-
-	interface SiteData {
-		title: string;
-		url: string;
-		description?: string;
-	}
-
-	interface TagData {
-		name: string;
-	}
-
-	interface FollowUpData {
-		query: string;
-	}
-
-	interface ResponsePart {
-		type: 'text' | 'topic';
-		content: string;
-	}
+	import type { StepData, SiteData, TagData, FollowUpData, ResponsePart } from '$types/query';
 
 	let { data, project } = $props();
 
@@ -289,7 +266,7 @@
 			<Step
 				index={steps.indexOf(step) + 1}
 				step={step.step}
-				content={step.content}
+				content={[step.content ?? '']}
 				isLast={steps.indexOf(step) === steps.length - 1}
 				hasResponse={!!response}
 			/>

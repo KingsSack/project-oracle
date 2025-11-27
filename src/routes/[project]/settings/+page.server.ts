@@ -1,7 +1,26 @@
 import { fail } from '@sveltejs/kit';
-import { db } from '../../../db/db.server';
-import { modelGroups, models } from '../../../db/schema';
+import { db } from '$db/db.server';
+import { modelGroups, models } from '$db/schema';
 import { eq } from 'drizzle-orm';
+import type { Actions, PageServerLoad } from './$types';
+
+export const load: PageServerLoad = async () => {
+	try {
+		const modelsData = await db
+			.select({ id: models.id, model: models.model })
+			.from(models)
+			.orderBy(models.model);
+		const modelGroupsData = await db.select({ name: modelGroups.name }).from(modelGroups);
+
+		return {
+			models: modelsData.map((model) => ({ id: model.id, model: model.model })),
+			modelGroups: modelGroupsData.map((group) => group.name)
+		};
+	} catch (error) {
+		console.error('Error loading model groups:', error);
+		throw error;
+	}
+};
 
 export const actions = {
 	'add-model': async ({ request }) => {
@@ -79,22 +98,4 @@ export const actions = {
 
 		return { success: true };
 	}
-};
-
-export async function load() {
-	try {
-		const modelsData = await db
-			.select({ id: models.id, model: models.model })
-			.from(models)
-			.orderBy(models.model);
-		const modelGroupsData = await db.select({ name: modelGroups.name }).from(modelGroups);
-
-		return {
-			models: modelsData.map((model) => ({ id: model.id, model: model.model })),
-			modelGroups: modelGroupsData.map((group) => group.name)
-		};
-	} catch (error) {
-		console.error('Error loading model groups:', error);
-		throw error;
-	}
-}
+} satisfies Actions;

@@ -43,6 +43,7 @@
 
 <div class="relative" bind:this={dropdownRef}>
 	<button
+		type="button"
 		class="text-muted-foreground inline-flex cursor-pointer items-center justify-center gap-x-1 rounded-md"
 		onclick={toggleDropdown}
 	>
@@ -79,7 +80,7 @@
 					{searchTerm ? 'No results found' : 'No available items'}
 				</div>
 			{/if}
-            {@render children()}
+			{@render children()}
 		</div>
 	{/if}
 </div>

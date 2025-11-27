@@ -1,101 +1,12 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
-import { db } from '../../../../db/db.server';
-import { followUps, queries, threads } from '../../../../db/schema';
+import { db } from '$db/db.server';
+import { followUps, queries, threads } from '$db/schema';
+import type { Actions, PageServerLoad } from './$types';
 
-export const actions = {
-	'follow-up': async ({ request }) => {
-		const data = await request.formData();
-
-		const project = data.get('project') || 'Default';
-		const userQuery = data.get('query');
-		let threadId = data.get('threadId');
-		const queryId = data.get('queryId');
-
-		if (!userQuery) {
-			return fail(400, {
-				error: 'No query provided'
-			});
-		}
-
-		if (!threadId || isNaN(parseInt(threadId.toString()))) {
-			return fail(400, {
-				error: 'Invalid thread ID'
-			});
-		}
-
-		if (!queryId || isNaN(parseInt(queryId.toString()))) {
-			return fail(400, {
-				error: 'Invalid query ID'
-			});
-		}
-
-		const isNewThread = data.get('createNewThread') === 'true' || false;
-
-		try {
-			await db.delete(followUps).where(eq(followUps.queryId, parseInt(queryId.toString())));
-
-			if (isNewThread) {
-				const currentThreadData = await db
-					.select({
-						modelGroupsId: threads.modelGroupsId,
-						projectsId: threads.projectsId
-					})
-					.from(threads)
-					.where(eq(threads.id, parseInt(threadId.toString())))
-					.limit(1);
-				
-				if (currentThreadData.length === 0) {
-					return fail(404, {
-						error: 'Original thread not found'
-					});
-				}
-
-				const { modelGroupsId, projectsId } = currentThreadData[0];
-
-				const newThreadData = await db
-					.insert(threads)
-					.values({
-						modelGroupsId: modelGroupsId,
-						projectsId: projectsId,
-						timestamp: new Date().toISOString()
-					})
-					.returning({ id: threads.id });
-				
-				threadId = newThreadData[0].id.toString();
-			}
-
-			const queryData = await db
-				.insert(queries)
-				.values({
-					type: 'answer',
-					query: userQuery.toString(),
-					timestamp: new Date().toISOString(),
-					threadId: parseInt(threadId.toString())
-				})
-				.returning({
-					id: queries.id
-				});
-
-			throw redirect(303, `/${project.toString().toLowerCase()}/query/${queryData[0].id}`);
-		} catch (error) {
-			if (error && typeof error === 'object' && 'status' in error && error.status === 303) {
-				throw error;
-			}
-
-			return fail(422, {
-				description: userQuery,
-				error: error instanceof Error ? error.message : 'Unknown error'
-			});
-		}
-	}
-};
-
-export async function load({ params: { id }, parent }) {
+export const load: PageServerLoad = async ({ params: { id }, parent }) => {
 	try {
-		const parentData = await parent();
-
-		const currentProject = parentData.selectedProject || 'Default';
+		const { selectedProject } = await parent();
 
 		const query = await db.query.queries.findFirst({
 			where: eq(queries.id, parseInt(id)),
@@ -161,9 +72,97 @@ export async function load({ params: { id }, parent }) {
 		return {
 			query: query,
 			queries: queriesData,
-			currentProject: currentProject
+			currentProject: selectedProject
 		};
 	} catch (error) {
 		throw fail(404);
 	}
-}
+};
+
+export const actions = {
+	'follow-up': async ({ request }) => {
+		const data = await request.formData();
+
+		const project = data.get('project') || 'Default';
+		const userQuery = data.get('query');
+		let threadId = data.get('threadId');
+		const queryId = data.get('queryId');
+
+		if (!userQuery) {
+			return fail(400, {
+				error: 'No query provided'
+			});
+		}
+
+		if (!threadId || isNaN(parseInt(threadId.toString()))) {
+			return fail(400, {
+				error: 'Invalid thread ID'
+			});
+		}
+
+		if (!queryId || isNaN(parseInt(queryId.toString()))) {
+			return fail(400, {
+				error: 'Invalid query ID'
+			});
+		}
+
+		const isNewThread = data.get('createNewThread') === 'true' || false;
+
+		try {
+			await db.delete(followUps).where(eq(followUps.queryId, parseInt(queryId.toString())));
+
+			if (isNewThread) {
+				const currentThreadData = await db
+					.select({
+						modelGroupsId: threads.modelGroupsId,
+						projectsId: threads.projectsId
+					})
+					.from(threads)
+					.where(eq(threads.id, parseInt(threadId.toString())))
+					.limit(1);
+
+				if (currentThreadData.length === 0) {
+					return fail(404, {
+						error: 'Original thread not found'
+					});
+				}
+
+				const { modelGroupsId, projectsId } = currentThreadData[0];
+
+				const newThreadData = await db
+					.insert(threads)
+					.values({
+						modelGroupsId: modelGroupsId,
+						projectsId: projectsId,
+						timestamp: new Date().toISOString()
+					})
+					.returning({ id: threads.id });
+
+				threadId = newThreadData[0].id.toString();
+			}
+
+			const queryData = await db
+				.insert(queries)
+				.values({
+					type: 'answer',
+					query: userQuery.toString(),
+					timestamp: new Date().toISOString(),
+					threadId: parseInt(threadId.toString())
+				})
+				.returning({
+					id: queries.id
+				});
+
+			throw redirect(303, `/${project.toString().toLowerCase()}/query/${queryData[0].id}`);
+		} catch (error) {
+			if (error && typeof error === 'object' && 'status' in error && error.status === 303) {
+				throw error;
+			}
+
+			return fail(422, {
+				description: userQuery,
+				error: error instanceof Error ? error.message : 'Unknown error'
+			});
+		}
+	}
+} satisfies Actions;

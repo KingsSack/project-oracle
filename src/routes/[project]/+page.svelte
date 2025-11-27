@@ -8,9 +8,9 @@
 
 	let { data, form }: PageProps = $props();
 
-	let projects = $state(data.projects || []);
+	let projects = $derived(data.projects || []);
 	let currentSource = $state('Web');
-	let currentModelGroup = $state('Auto');
+	let currentModelGroup = $derived(data.modelGroups[0]);
 
 	function changeSource(source: string) {
 		currentSource = source;
@@ -54,20 +54,26 @@
 		<input type="hidden" name="modelGroup" value={currentModelGroup} />
 		<div class="flex items-center justify-between gap-2">
 			<TabGroup>
-				<Tab active={selectedResponseType === 'answer'} onclick={() => selectedResponseType = 'answer'}>Answer</Tab>
-				<Tab active={selectedResponseType === 'research'} onclick={() => selectedResponseType = 'research'}>Research</Tab>
+				<Tab
+					active={selectedResponseType === 'answer'}
+					onclick={() => (selectedResponseType = 'answer')}>Answer</Tab
+				>
+				<Tab
+					active={selectedResponseType === 'research'}
+					onclick={() => (selectedResponseType = 'research')}>Research</Tab
+				>
 			</TabGroup>
 			<div class="flex items-center gap-3">
 				<Selector
 					current={currentSource}
 					items={['Web', 'Notion', 'Drive']}
 					onSelect={changeSource}
-				/>
-				<Selector
-					current={currentModelGroup}
-					items={data.modelGroups}
-					onSelect={changeModelGroup}
-				/>
+				>
+					<div></div>
+				</Selector>
+				<Selector current={currentModelGroup} items={data.modelGroups} onSelect={changeModelGroup}>
+					<div></div>
+				</Selector>
 				<button
 					type="submit"
 					class="text-muted-foreground inline-flex cursor-pointer items-center justify-center gap-x-2 rounded-md transition-opacity hover:opacity-80"

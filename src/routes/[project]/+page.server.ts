@@ -1,63 +1,77 @@
 import { eq } from 'drizzle-orm';
 import { fail, redirect } from '@sveltejs/kit';
-import { modelGroups, projects, queries, threads } from '../../db/schema';
-import { db } from '../../db/db.server';
-import { users } from '../../db/schema.js';
+import { modelGroups, projects, queries, threads, users } from '$db/schema';
+import { db } from '$db/db.server';
 import { resolveModelGroupId } from '$lib/utils/modelGroups';
+import type { PageServerLoad } from './$types';
+
+export const load: PageServerLoad = async ({ parent }) => {
+	const { projects, selectedProject } = await parent();
+
+	const modelGroupsData = await db.select({ name: modelGroups.name }).from(modelGroups);
+
+	const modelGroupNames = ['Auto', ...modelGroupsData.map((group) => group.name)];
+
+	return {
+		projects: projects.slice(0, 6),
+		currentProject: selectedProject,
+		modelGroups: modelGroupNames
+	};
+};
 
 export const actions = {
 	createProject: async ({ request }) => {
-        const formData = await request.formData();
-        const projectName = (formData.get('name')?.toString() ?? '').trim();
+		const formData = await request.formData();
+		const projectName = (formData.get('name')?.toString() ?? '').trim();
 
-        if (!projectName) {
-            return fail(400, { message: 'Project name is required.' });
-        }
+		if (!projectName) {
+			return fail(400, { message: 'Project name is required.' });
+		}
 
-        try {
-            const existingProject = await db
-                .select({ id: projects.id })
-                .from(projects)
-                .where(eq(projects.name, projectName))
-                .limit(1);
+		try {
+			const existingProject = await db
+				.select({ id: projects.id })
+				.from(projects)
+				.where(eq(projects.name, projectName))
+				.limit(1);
 
-            if (existingProject.length > 0) {
-                return fail(409, { message: 'A project with that name already exists.' });
-            }
+			if (existingProject.length > 0) {
+				return fail(409, { message: 'A project with that name already exists.' });
+			}
 
-            const usersResult = await db.query.users.findMany({
-                columns: { id: true },
-                limit: 1
-            });
+			const usersResult = await db.query.users.findMany({
+				columns: { id: true },
+				limit: 1
+			});
 
-            let userId = usersResult[0]?.id;
+			let userId = usersResult[0]?.id;
 
-            if (!userId) {
-                await db.insert(users).values({
-                    name: 'Default user',
-                    email: 'default@project-oracle.local'
-                });
+			if (!userId) {
+				await db.insert(users).values({
+					name: 'Default user',
+					email: 'default@project-oracle.local'
+				});
 
-                const createdUser = await db.query.users.findMany({
-                    columns: { id: true },
-                    limit: 1
-                });
+				const createdUser = await db.query.users.findMany({
+					columns: { id: true },
+					limit: 1
+				});
 
-                userId = createdUser[0]?.id;
-            }
+				userId = createdUser[0]?.id;
+			}
 
-            if (!userId) {
-                return fail(500, { message: 'Unable to assign a user to the project.' });
-            }
+			if (!userId) {
+				return fail(500, { message: 'Unable to assign a user to the project.' });
+			}
 
-            await db.insert(projects).values({ name: projectName, userId });
+			await db.insert(projects).values({ name: projectName, userId });
 
-            return { success: true };
-        } catch (error) {
-            console.error('Unable to create project', error);
-            return fail(500, { message: 'Unable to create project.' });
-        }
-    },
+			return { success: true };
+		} catch (error) {
+			console.error('Unable to create project', error);
+			return fail(500, { message: 'Unable to create project.' });
+		}
+	},
 	query: async ({ request }) => {
 		const data = await request.formData();
 
@@ -82,7 +96,7 @@ export const actions = {
 			const selectedModelGroupId = await resolveModelGroupId(modelGroup.toString());
 
 			let projectsId: number | undefined;
-			if (project !== 'Default') {
+			if (project !== 'default') {
 				const projectResult = await db
 					.select({ id: projects.id })
 					.from(projects)
@@ -99,7 +113,11 @@ export const actions = {
 
 			const threadData = await db
 				.insert(threads)
-				.values({ modelGroupsId: selectedModelGroupId, projectsId, timestamp: new Date().toISOString() })
+				.values({
+					modelGroupsId: selectedModelGroupId,
+					projectsId,
+					timestamp: new Date().toISOString()
+				})
 				.returning({ id: threads.id });
 
 			const id = threadData[0].id;
@@ -127,26 +145,3 @@ export const actions = {
 		}
 	}
 };
-
-export async function load({ parent }) {
-	try {
-		const parentData = await parent();
-
-		const projects = parentData.projects || [];
-		projects.slice(0, 6);
-
-		const currentProject = parentData.selectedProject || 'Default';
-		
-		const modelGroupsData = await db.select({ name: modelGroups.name }).from(modelGroups);
-
-		const modelGroupNames = ['Auto', ...modelGroupsData.map((group) => group.name)];
-
-		return {
-			projects: projects,
-			currentProject: currentProject,
-			modelGroups: modelGroupNames
-		};
-	} catch (error) {
-		return fail(500);
-	}
-}

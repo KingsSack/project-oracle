@@ -79,7 +79,7 @@
 		</div>
 		<Selector
 			current={currentProject}
-			items={['Default', ...projectNames]}
+			items={['default', ...projectNames]}
 			onSelect={selectProject}
 			bind:searchTerm={projectSearch}
 		>

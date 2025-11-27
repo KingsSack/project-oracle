@@ -3,8 +3,12 @@
 {
 	"name": "Bun",
 	"dockerFile": "Dockerfile",
-	"forwardPorts": [5173],
+	"forwardPorts": [4000, 5173],
 	"portsAttributes": {
+		"4000": {
+			"label": "Genkit UI",
+			"onAutoForward": "notify"
+		},
 		"5173": {
 			"label": "Application",
 			"onAutoForward": "notify"

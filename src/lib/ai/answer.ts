@@ -2,8 +2,8 @@ import { z } from 'genkit';
 import { ai } from '../../ai/ai.server';
 import { search } from './tools/search';
 import { eq } from 'drizzle-orm';
-import { db } from '../../db/db.server';
-import { queries, querySteps, sources } from '../../db/schema';
+import { db } from '$db/db.server';
+import { queries, querySteps, sources } from '$db/schema';
 
 const AnswerInputSchema = z.object({
 	responseModel: z.object({
@@ -106,10 +106,7 @@ export const answerFlow = ai.defineFlow(
 		streamSchema: AnswerStreamSchema,
 		outputSchema: AnswerOutputSchema
 	},
-	async (
-		{ responseModel, query, queryId, messages },
-		{ sendChunk }
-	) => {
+	async ({ responseModel, query, queryId, messages }, { sendChunk }) => {
 		try {
 			let steps: Step[] = [];
 

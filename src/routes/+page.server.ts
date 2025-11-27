@@ -1,5 +1,6 @@
 import { redirect } from '@sveltejs/kit';
+import type { PageServerLoad } from './$types';
 
-export function load() {
-  throw redirect(307, '/default');
-}
+export const load: PageServerLoad = () => {
+	throw redirect(307, '/default');
+};
